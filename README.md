@@ -134,8 +134,13 @@ Motor 2 has inverted wiring where HIGH signal = CCW/LEFT direction. All directio
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Author
+## Authors
 
-[Add your name here]
+Daniel & Joerg Arnold
+
+## Acknowledgments
+
+- Built with [PlatformIO](https://platformio.org/)
+- Designed for [Controllino](https://www.controllino.com/) automation platform
