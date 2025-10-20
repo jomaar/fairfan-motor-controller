@@ -1,8 +1,23 @@
-// User_Setup.h for ESP32-C6-LCD-1.47
-// This file should be placed in the TFT_eSPI library folder
-// OR use TFT_eSPI User_Setup_Select.h to include this file
+// TFT_eSPI User_Setup.h Configuration for ESP32-C6-LCD-1.47
+// 
+// INSTALLATION INSTRUCTIONS:
+// After PlatformIO downloads the TFT_eSPI library (during first build),
+// this file needs to be copied to the library folder.
+//
+// AUTOMATIC METHOD (run after first build attempt):
+//   cd esp32
+//   cp User_Setup.h .pio/libdeps/esp32-c6-devkitc-1/TFT_eSPI/User_Setup.h
+//
+// MANUAL METHOD:
+//   1. Build project once (it will fail, but downloads libraries)
+//   2. Find TFT_eSPI in: .pio/libdeps/esp32-c6-devkitc-1/TFT_eSPI/
+//   3. Copy this file there as User_Setup.h
+//   4. Build again
 
-// Driver
+#ifndef USER_SETUP_LOADED
+#define USER_SETUP_LOADED
+
+// Driver selection
 #define ST7789_DRIVER
 
 // Display size
@@ -26,7 +41,7 @@
 // Color order (may need adjustment)
 #define TFT_RGB_ORDER TFT_BGR
 
-// Fonts to load
+// Fonts to load (comment out unused ones to save memory)
 #define LOAD_GLCD   // Font 1. Original Adafruit 8 pixel font needs ~1820 bytes in FLASH
 #define LOAD_FONT2  // Font 2. Small 16 pixel high font, needs ~3534 bytes in FLASH, 96 characters
 #define LOAD_FONT4  // Font 4. Medium 26 pixel high font, needs ~5848 bytes in FLASH, 96 characters
@@ -35,4 +50,7 @@
 #define LOAD_FONT8  // Font 8. Large 75 pixel font needs ~3256 bytes in FLASH, only characters 1234567890:-.
 #define LOAD_GFXFF  // FreeFonts. Include access to the 48 Adafruit_GFX free fonts FF1 to FF48 and custom fonts
 
+// Smooth font rendering
 #define SMOOTH_FONT
+
+#endif // USER_SETUP_LOADED
