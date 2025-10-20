@@ -24,7 +24,7 @@ private:
     
 public:
     SerialBridge() 
-        : controllinoSerial(Serial2),
+        : controllinoSerial(Serial1),  // ESP32-C6 uses Serial1 (UART1)
           receiveBuffer(""),
           lastResponse(""),
           lastResponseTime(0),

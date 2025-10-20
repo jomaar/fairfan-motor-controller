@@ -24,8 +24,9 @@ namespace Config {
     
     // Serial Communication with Controllino
     namespace Serial {
-        constexpr uint8_t RX_PIN = 16;  // ESP32 RX2 (connects to Controllino TX)
-        constexpr uint8_t TX_PIN = 17;  // ESP32 TX2 (connects to Controllino RX)
+        // ESP32-C6 uses UART1 (not Serial2 like original ESP32)
+        constexpr uint8_t RX_PIN = 5;   // ESP32-C6 UART1 RX (connects to Controllino TX2 pin 16)
+        constexpr uint8_t TX_PIN = 4;   // ESP32-C6 UART1 TX (connects to Controllino RX2 pin 17)
         constexpr unsigned long BAUD_RATE = 115200;
         constexpr unsigned long TIMEOUT_MS = 1000;
     }
@@ -37,14 +38,24 @@ namespace Config {
         constexpr unsigned long UPDATE_INTERVAL_MS = 100;  // Status update frequency
     }
     
-    // Display (Optional - SSD1306 128x64 OLED)
+    // Display (ESP32-C6-LCD-1.47 Built-in Display)
     namespace Display {
         constexpr bool ENABLED = true;
-        constexpr uint8_t I2C_SDA = 21;
-        constexpr uint8_t I2C_SCL = 22;
-        constexpr uint8_t I2C_ADDRESS = 0x3C;
-        constexpr uint8_t SCREEN_WIDTH = 128;
-        constexpr uint8_t SCREEN_HEIGHT = 64;
+        
+        // LCD Pins (check your specific board - these are typical)
+        constexpr uint8_t TFT_CS = 10;      // Chip select
+        constexpr uint8_t TFT_DC = 8;       // Data/Command
+        constexpr uint8_t TFT_RST = 9;      // Reset
+        constexpr uint8_t TFT_MOSI = 6;     // SPI MOSI
+        constexpr uint8_t TFT_SCK = 7;      // SPI Clock
+        constexpr uint8_t TFT_BL = 3;       // Backlight
+        
+        // Display specifications
+        constexpr uint16_t SCREEN_WIDTH = 172;   // 1.47" round display width
+        constexpr uint16_t SCREEN_HEIGHT = 320;  // 1.47" round display height
+        constexpr uint8_t ROTATION = 0;          // Screen rotation (0-3)
+        constexpr uint8_t BRIGHTNESS = 255;      // Backlight brightness (0-255)
+        
         constexpr unsigned long UPDATE_INTERVAL_MS = 500;  // Display refresh rate
     }
     

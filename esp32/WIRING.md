@@ -20,16 +20,19 @@
 
 ### ESP32 ↔ Controllino Serial
 
-| ESP32 Pin | Signal | Controllino Pin |
-|-----------|--------|-----------------|
-| GPIO 17   | TX2    | Serial1 RX      |
-| GPIO 16   | RX2    | Serial1 TX      |
-| GND       | Ground | GND             |
+| ESP32 Pin | Signal | Controllino Port | Arduino Pins |
+|-----------|--------|------------------|--------------|
+| GPIO 17   | TX2    | Serial2 RX       | Pin 17 (RX2) |
+| GPIO 16   | RX2    | Serial2 TX       | Pin 16 (TX2) |
+| GND       | Ground | GND              | GND          |
 
 **Important:** 
 - TX connects to RX (crossover)
 - Both devices must share common ground
 - Serial baud rate: 115200 (configured in both devices)
+- **Controllino:** Use Serial2 (pins 16/17) - See `controllino/SERIAL_PORTS.md`
+- **Note:** Serial0 is used for USB programming, do NOT use Serial/Serial1
+- **Use Serial2 or Serial3** on Controllino (NOT Serial/Serial0 - that's for USB/PC)
 
 ### Optional: OLED Display (ESP32)
 
@@ -58,8 +61,8 @@
 
 ## Connection Checklist
 
-- [ ] ESP32 TX2 (GPIO17) → Controllino Serial1 RX
-- [ ] ESP32 RX2 (GPIO16) → Controllino Serial1 TX
+- [ ] ESP32 TX2 (GPIO17) → Controllino Serial2/3 RX
+- [ ] ESP32 RX2 (GPIO16) → Controllino Serial2/3 TX
 - [ ] Common GND between ESP32 and Controllino
 - [ ] ESP32 powered via USB
 - [ ] Controllino powered via DC input
@@ -129,12 +132,23 @@
 - Voltage: 3.3V compatible
 - Address: 0x3C (default)
 
-## Advanced: Controllino Serial Port
+## Advanced: Controllino Serial Ports
 
-The Controllino MAXI has **Serial1** available on specific pins. Check your Controllino documentation for the exact pin locations of Serial1 TX and RX.
+The Controllino MAXI Automation (ATmega2560) has **multiple serial ports**:
 
-**Typical mapping:**
-- Serial1 can be accessed via specific screw terminals
-- May require enabling Serial1 in code with `Serial1.begin(115200)`
+- **Serial (Serial0)** - Used for USB/PC programming - **DO NOT USE for ESP32**
+- **Serial1** - May be used for other purposes
+- **Serial2** - Available for ESP32 communication ✅
+- **Serial3** - Available for ESP32 communication (used for RS485 in some MAXI variants)
 
-Consult the [Controllino MAXI documentation](https://www.controllino.com/controllino-maxi/) for your specific model.
+**Recommended:** Use **Serial2** on Controllino MAXI Automation
+
+Check your Controllino pin documentation for the exact screw terminal locations of Serial2 TX and RX pins.
+
+**Controllino code setup:**
+```cpp
+// In your Controllino setup():
+Serial2.begin(115200);  // For ESP32 bridge communication
+```
+
+Consult the [Controllino MAXI pinout table](https://www.controllino.com/wp-content/uploads/2023/05/CONTROLLINO_MAXI_Pinout_Table.pdf) for your specific model.

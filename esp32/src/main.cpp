@@ -5,9 +5,11 @@
  * for controlling the FairFan motor controller (Controllino MAXI).
  * 
  * Hardware Connections:
- * - ESP32 TX2 (GPIO17) → Controllino RX
- * - ESP32 RX2 (GPIO16) → Controllino TX
+ * - ESP32 TX2 (GPIO17) → Controllino Serial2 RX
+ * - ESP32 RX2 (GPIO16) → Controllino Serial2 TX
  * - GND → GND
+ * 
+ * IMPORTANT: Controllino must use Serial2, NOT Serial (USB)
  * 
  * Features:
  * - WiFi Access Point (default) or Station mode
@@ -24,23 +26,13 @@
 #include "WiFiManager.h"
 #include "SerialBridge.h"
 #include "WebServerManager.h"
-
-// Optional display support
-#ifdef CONFIG_DISPLAY_ENABLED
-  #include <Wire.h>
-  #include <Adafruit_GFX.h>
-  #include <Adafruit_SSD1306.h>
-#endif
+#include "DisplayManager.h"
 
 // Global objects
 WiFiManager wifiManager;
 SerialBridge serialBridge;
 WebServerManager* webServer = nullptr;
-
-#ifdef CONFIG_DISPLAY_ENABLED
-  Adafruit_SSD1306* display = nullptr;
-  unsigned long lastDisplayUpdate = 0;
-#endif
+DisplayManager displayManager;
 
 /**
  * Setup - Initialize all components
@@ -66,35 +58,8 @@ void setup() {
     webServer = new WebServerManager(serialBridge);
     webServer->begin();
     
-    #ifdef CONFIG_DISPLAY_ENABLED
-    if (Config::Display::ENABLED) {
-        // Initialize display
-        Wire.begin(Config::Display::I2C_SDA, Config::Display::I2C_SCL);
-        display = new Adafruit_SSD1306(
-            Config::Display::SCREEN_WIDTH,
-            Config::Display::SCREEN_HEIGHT,
-            &Wire,
-            -1
-        );
-        
-        if (display->begin(SSD1306_SWITCHCAPVCC, Config::Display::I2C_ADDRESS)) {
-            Serial.println(F("[Display] OLED initialized"));
-            display->clearDisplay();
-            display->setTextSize(1);
-            display->setTextColor(SSD1306_WHITE);
-            display->setCursor(0, 0);
-            display->println(F("FairFan Control"));
-            display->println();
-            display->println(wifiManager.getStatusString());
-            display->println(wifiManager.getIPAddress());
-            display->display();
-        } else {
-            Serial.println(F("[Display] OLED not found"));
-            delete display;
-            display = nullptr;
-        }
-    }
-    #endif
+    // Initialize display (ESP32-C6-LCD-1.47)
+    displayManager.begin();
     
     Serial.println();
     Serial.println(F("========================================"));
@@ -119,50 +84,13 @@ void loop() {
         webServer->update();
     }
     
-    #ifdef CONFIG_DISPLAY_ENABLED
-    // Update display periodically
-    if (display != nullptr && Config::Display::ENABLED) {
-        if (millis() - lastDisplayUpdate > Config::Display::UPDATE_INTERVAL_MS) {
-            lastDisplayUpdate = millis();
-            
-            display->clearDisplay();
-            display->setCursor(0, 0);
-            
-            // Title
-            display->setTextSize(1);
-            display->println(F("FairFan Control"));
-            display->drawLine(0, 10, 127, 10, SSD1306_WHITE);
-            
-            // WiFi status
-            display->setCursor(0, 15);
-            display->print(wifiManager.isAPMode() ? "AP: " : "WiFi: ");
-            display->println(wifiManager.isAPMode() ? 
-                Config::WiFi::AP_SSID : Config::WiFi::STA_SSID);
-            
-            // IP address
-            display->print(F("IP: "));
-            display->println(wifiManager.getIPAddress());
-            
-            // Connection status
-            display->drawLine(0, 35, 127, 35, SSD1306_WHITE);
-            display->setCursor(0, 40);
-            display->print(F("Controllino: "));
-            display->println(serialBridge.isConnected() ? "OK" : "---");
-            
-            // Last response
-            String lastResp = serialBridge.getLastResponse();
-            if (lastResp.length() > 0) {
-                display->setCursor(0, 52);
-                if (lastResp.length() > 21) {
-                    lastResp = lastResp.substring(0, 18) + "...";
-                }
-                display->print(lastResp);
-            }
-            
-            display->display();
-        }
-    }
-    #endif
+    // Update display (ESP32-C6-LCD-1.47)
+    displayManager.update(
+        wifiManager.getStatusString(),
+        wifiManager.getIPAddress(),
+        serialBridge.isConnected(),
+        serialBridge.getLastResponse()
+    );
     
     // Small delay to prevent watchdog reset
     delay(1);

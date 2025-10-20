@@ -65,9 +65,10 @@ The web interface polls `/api/status` every 1 second instead of using WebSocket 
 ### 4. Serial Communication
 Uses HardwareSerial (Serial2) for reliable communication with minimal CPU overhead.
 
-- **TX2 (GPIO17)** → Controllino RX
-- **RX2 (GPIO16)** → Controllino TX
+- **TX2 (GPIO17)** → Controllino Serial2 RX
+- **RX2 (GPIO16)** → Controllino Serial2 TX
 - **Baud: 115200** (matches Controllino)
+- **Important:** Use Serial2 on Controllino (NOT Serial/Serial0 which is for USB)
 
 ## What Works Now
 
@@ -102,9 +103,10 @@ platformio device monitor --baud 115200
 ```
 
 ### 2. Connect Hardware
-- ESP32 TX2 (GPIO17) → Controllino RX
-- ESP32 RX2 (GPIO16) → Controllino TX
+- ESP32 TX2 (GPIO17) → Controllino Serial2 RX
+- ESP32 RX2 (GPIO16) → Controllino Serial2 TX
 - GND → GND
+- Note: Add `Serial2.begin(115200);` to Controllino setup()
 
 ### 3. Connect Phone
 - WiFi: "FairFan-Control"

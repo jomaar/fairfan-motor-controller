@@ -6,10 +6,13 @@ Connect ESP32 to Controllino:
 
 ```
 ESP32 → Controllino
-─────────────────────
-TX2 (17) → RX
-RX2 (16) → TX
+──────────────────────────
+TX2 (17) → Serial2 RX
+RX2 (16) → Serial2 TX
 GND → GND
+
+Add to Controllino:
+Serial2.begin(115200);
 ```
 
 ## 2️⃣ Upload Firmware
