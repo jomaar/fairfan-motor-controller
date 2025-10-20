@@ -9,9 +9,10 @@ namespace Config {
         // Access Point Mode (for direct phone connection)
         constexpr const char* AP_SSID = "FairFan-Control";
         constexpr const char* AP_PASSWORD = "fairfan2025";  // Minimum 8 characters
-        constexpr IPAddress AP_IP = IPAddress(192, 168, 4, 1);
-        constexpr IPAddress AP_GATEWAY = IPAddress(192, 168, 4, 1);
-        constexpr IPAddress AP_SUBNET = IPAddress(255, 255, 255, 0);
+        // Note: IPAddress cannot be constexpr, these are defined in WiFiManager.h instead
+        // AP_IP = IPAddress(192, 168, 4, 1)
+        // AP_GATEWAY = IPAddress(192, 168, 4, 1)
+        // AP_SUBNET = IPAddress(255, 255, 255, 0)
         
         // Station Mode (to connect to existing WiFi)
         // Leave empty to use AP mode only
@@ -24,10 +25,10 @@ namespace Config {
     
     // Serial Communication with Controllino
     namespace Serial {
-        // ESP32-C6 uses UART1 (not Serial2 like original ESP32)
-        constexpr uint8_t RX_PIN = 5;   // ESP32-C6 UART1 RX (connects to Controllino TX2 pin 16)
-        constexpr uint8_t TX_PIN = 4;   // ESP32-C6 UART1 TX (connects to Controllino RX2 pin 17)
-        constexpr unsigned long BAUD_RATE = 115200;
+        // TTGO T-Display uses Serial2 (ESP32 has Serial0, Serial1, Serial2)
+        constexpr uint8_t RX_PIN = 22;  // GPIO22 for Serial2 RX (connects to Controllino TX2 pin 16)
+        constexpr uint8_t TX_PIN = 21;  // GPIO21 for Serial2 TX (connects to Controllino RX2 pin 17)
+        constexpr unsigned long BAUD_RATE = 9600;
         constexpr unsigned long TIMEOUT_MS = 1000;
     }
     
@@ -38,21 +39,16 @@ namespace Config {
         constexpr unsigned long UPDATE_INTERVAL_MS = 100;  // Status update frequency
     }
     
-    // Display (ESP32-C6-LCD-1.47 Built-in Display)
+    // Display (TTGO T-Display 1.14" Built-in Display)
     namespace Display {
         constexpr bool ENABLED = true;
         
-        // LCD Pins (check your specific board - these are typical)
-        constexpr uint8_t TFT_CS = 10;      // Chip select
-        constexpr uint8_t TFT_DC = 8;       // Data/Command
-        constexpr uint8_t TFT_RST = 9;      // Reset
-        constexpr uint8_t TFT_MOSI = 6;     // SPI MOSI
-        constexpr uint8_t TFT_SCK = 7;      // SPI Clock
-        constexpr uint8_t TFT_BL = 3;       // Backlight
+        // NOTE: LCD pins are configured in platformio.ini build_flags
+        // TFT_MOSI=19, TFT_SCLK=18, TFT_CS=5, TFT_DC=16, TFT_RST=23, TFT_BL=4
         
         // Display specifications
-        constexpr uint16_t SCREEN_WIDTH = 172;   // 1.47" round display width
-        constexpr uint16_t SCREEN_HEIGHT = 320;  // 1.47" round display height
+        constexpr uint16_t SCREEN_WIDTH = 135;   // TTGO T-Display 1.14" width
+        constexpr uint16_t SCREEN_HEIGHT = 240;  // TTGO T-Display 1.14" height
         constexpr uint8_t ROTATION = 0;          // Screen rotation (0-3)
         constexpr uint8_t BRIGHTNESS = 255;      // Backlight brightness (0-255)
         

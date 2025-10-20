@@ -99,7 +99,10 @@ private:
         Serial.println(F("[WiFi] Starting Access Point..."));
         
         WiFi.mode(WIFI_AP);
-        WiFi.softAPConfig(Config::WiFi::AP_IP, Config::WiFi::AP_GATEWAY, Config::WiFi::AP_SUBNET);
+        IPAddress apIP(192, 168, 4, 1);
+        IPAddress gateway(192, 168, 4, 1);
+        IPAddress subnet(255, 255, 255, 0);
+        WiFi.softAPConfig(apIP, gateway, subnet);
         WiFi.softAP(Config::WiFi::AP_SSID, Config::WiFi::AP_PASSWORD);
         
         ipAddress = WiFi.softAPIP().toString();
