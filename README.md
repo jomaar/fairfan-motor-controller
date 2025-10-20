@@ -2,6 +2,10 @@
 
 A sophisticated dual-motor control system for the FairFan project, built on the Controllino MAXI Automation platform (ATmega2560).
 
+## ✨ New: Web Interface Available!
+
+Control your FairFan from any phone or tablet! See [`esp32/`](esp32/) folder for the WiFi-enabled web interface.
+
 ## Features
 
 - **Dual Motor Control**: Independent control of two stepper motors with different gear ratios
@@ -9,6 +13,7 @@ A sophisticated dual-motor control system for the FairFan project, built on the 
 - **Homing System**: Automatic limit switch detection and position calibration for Motor 2
 - **Synchronized Sequences**: Coordinated oscillation patterns with configurable direction modes
 - **Serial Command Interface**: Interactive control via serial monitor
+- **WiFi Web Interface** (ESP32): Mobile-friendly web control panel
 - **Safety Features**: Emergency stop, soft stop with re-homing requirement, position validation
 
 ## Hardware
@@ -70,14 +75,67 @@ A sophisticated dual-motor control system for the FairFan project, built on the 
 
 ```
 fairfanpio01/
-├── include/
-│   ├── CommandHandler.h       # Serial command interface
-│   ├── Config.h                # Centralized configuration
-│   ├── MainMotor.h             # Motor 1 control
-│   ├── OscillationMotor.h      # Motor 2 with homing
-│   ├── SequenceStateMachine.h  # Coordinated sequences
-│   └── StepperMotor.h          # Base stepper motor class
-├── src/
+├── controllino/               # Controllino firmware (main motor controller)
+│   ├── include/
+│   │   ├── CommandHandler.h       # Serial command interface
+│   │   ├── Config.h                # Centralized configuration
+│   │   ├── MainMotor.h             # Motor 1 control
+│   │   ├── OscillationMotor.h      # Motor 2 with homing
+│   │   ├── SequenceStateMachine.h  # Coordinated sequences
+│   │   └── StepperMotor.h          # Base stepper motor class
+│   ├── src/
+│   │   └── fairfanpio.cpp          # Main program
+│   └── platformio.ini              # PlatformIO configuration
+├── esp32/                     # ESP32 WiFi web interface (optional)
+│   ├── include/
+│   │   ├── Config.h                # ESP32 configuration
+│   │   ├── SerialBridge.h          # Serial communication
+│   │   ├── WebServerManager.h      # Web server & API
+│   │   └── WiFiManager.h           # WiFi connection
+│   ├── src/
+│   │   └── main.cpp                # ESP32 main program
+│   ├── platformio.ini              # ESP32 PlatformIO config
+│   ├── README.md                   # ESP32 documentation
+│   └── QUICKSTART.md               # Quick setup guide
+├── include/                   # Legacy location (to be moved)
+├── src/                       # Legacy location (to be moved)
+├── platformio.ini             # Legacy config (to be moved)
+├── LICENSE                    # MIT License
+└── README.md                  # This file
+```
+
+## Getting Started
+
+### Option 1: Controllino Only (Serial Control)
+
+Use the serial monitor to control the motors via commands.
+
+**Setup:**
+1. Navigate to project root
+2. Build and upload to Controllino
+3. Open serial monitor at 115200 baud
+
+```bash
+platformio run --target upload
+platformio device monitor --baud 115200
+```
+
+### Option 2: With ESP32 Web Interface
+
+Add WiFi control for phone/tablet access.
+
+**Setup:**
+1. Build and upload Controllino firmware (as above)
+2. Build and upload ESP32 firmware
+3. Connect ESP32 to Controllino via serial
+4. Connect phone to "FairFan-Control" WiFi
+5. Open browser to http://192.168.4.1
+
+See [`esp32/QUICKSTART.md`](esp32/QUICKSTART.md) for detailed instructions.
+
+## Building (Controllino)
+
+### Prerequisites
 │   └── fairfanpio.cpp          # Main program
 ├── platformio.ini              # PlatformIO configuration
 └── README.md                   # This file
