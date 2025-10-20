@@ -36,7 +36,7 @@ A sophisticated dual-motor control system for the FairFan project, built on the 
 - Deceleration: 36° (10% of 360°)
 - Power Curve: 0.8 (gentle)
 - Min Speed: 10%
-- **Note**: Inverted wiring (HIGH = CCW/LEFT)
+- **Note**: Inverted wiring (RIGHT=LOW signal, LEFT=HIGH signal)
 
 ## Commands
 

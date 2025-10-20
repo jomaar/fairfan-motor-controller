@@ -103,13 +103,15 @@ private:
             Serial.print(F("' = "));
             Serial.println(degrees);
             
-            if (degValue.length() > 0 && degrees >= 0 && degrees <= 7200) {  // Allow 0-7200°
+            if (degValue.length() > 0 && degrees >= 0 && degrees <= Config::Motor1::MAX_DEGREES) {
                 motor1CustomDegrees = degrees;
                 Serial.print(F("Motor 1 degrees set to: "));
                 Serial.print(motor1CustomDegrees);
                 Serial.println(F("°"));
             } else {
-                Serial.println(F("Error: Degrees must be between 0 and 7200"));
+                Serial.print(F("Error: Degrees must be between 0 and "));
+                Serial.print(Config::Motor1::MAX_DEGREES);
+                Serial.println(F("° (3 rotations max)"));
             }
         }
         
@@ -133,7 +135,7 @@ private:
         Serial.println(F("Motor 1:"));
         Serial.println(F("  go1       - Start Motor 1 (uses custom degrees or 180° default)"));
         Serial.println(F("  stop1     - Stop Motor 1"));
-        Serial.println(F("  deg<n>    - Set Motor 1 degrees (e.g., deg360, deg720, deg90)"));
+        Serial.println(F("  deg<n>    - Set Motor 1 degrees (0-1080°, e.g., deg360, deg720)"));
         Serial.println(F("  deg       - Show current Motor 1 degree setting"));
         Serial.println(F("\nMotor 2:"));
         Serial.println(F("  home      - Home Motor 2 (find limit switches)"));

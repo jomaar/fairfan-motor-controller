@@ -47,6 +47,14 @@ public:
     
     // Start movement with speed profiling
     void startMovement(float degrees) {
+        // Safety check: limit maximum rotation
+        if (degrees > Config::Motor1::MAX_DEGREES) {
+            Serial.print(F("Error: Motor1 rotation limited to "));
+            Serial.print(Config::Motor1::MAX_DEGREES);
+            Serial.println(F("° (3 rotations max)"));
+            degrees = Config::Motor1::MAX_DEGREES;
+        }
+        
         totalSteps = calculateSteps(degrees);
         
         // Use pre-calculated accel/decel zones (relative to 360°)

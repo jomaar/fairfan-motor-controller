@@ -19,6 +19,7 @@ namespace Config {
         constexpr float TARGET_RPM = 15.0f;          // Target speed at output shaft (after gear reduction)
         constexpr float TEST_DEGREES = 180.0f;       // Movement angle for 'go1' test command (half rotation)
         constexpr float SEQUENCE_DEGREES = 720.0f;   // Movement angle for seq1 oscillation (2 full rotations)
+        constexpr float MAX_DEGREES = 1080.0f;       // Maximum allowed rotation (3 full rotations = safety limit)
         // Speed Profile (calculated relative to 360° rotation for consistent acceleration)
         constexpr float ACCEL_ZONE = 0.05f;          // Acceleration zone (5% of 360° = 18°)
         constexpr float DECEL_ZONE = 0.05f;          // Deceleration zone (5% of 360° = 18°)
