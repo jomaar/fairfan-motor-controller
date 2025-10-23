@@ -169,7 +169,7 @@ public:
     }
     
     void update() {
-        // Read serial input
+        // Read serial input from Serial0 (USB or ESP32)
         while (Serial.available()) {
             char inChar = (char)Serial.read();
             

@@ -26,9 +26,10 @@ namespace Config {
     // Serial Communication with Controllino
     namespace Serial {
         // TTGO T-Display uses Serial2 (ESP32 has Serial0, Serial1, Serial2)
-        constexpr uint8_t RX_PIN = 22;  // GPIO22 for Serial2 RX (connects to Controllino TX2 pin 16)
-        constexpr uint8_t TX_PIN = 21;  // GPIO21 for Serial2 TX (connects to Controllino RX2 pin 17)
-        constexpr unsigned long BAUD_RATE = 9600;
+        // Connected to Controllino Serial0 (USB serial, pins 0/1 on X1)
+        constexpr uint8_t RX_PIN = 22;  // GPIO22 for Serial2 RX (connects to Controllino TX0 pin 1)
+        constexpr uint8_t TX_PIN = 21;  // GPIO21 for Serial2 TX (connects to Controllino RX0 pin 0)
+        constexpr unsigned long BAUD_RATE = 115200;  // Match Controllino Serial0 baud rate
         constexpr unsigned long TIMEOUT_MS = 1000;
     }
     
@@ -46,10 +47,10 @@ namespace Config {
         // NOTE: LCD pins are configured in platformio.ini build_flags
         // TFT_MOSI=19, TFT_SCLK=18, TFT_CS=5, TFT_DC=16, TFT_RST=23, TFT_BL=4
         
-        // Display specifications
-        constexpr uint16_t SCREEN_WIDTH = 135;   // TTGO T-Display 1.14" width
-        constexpr uint16_t SCREEN_HEIGHT = 240;  // TTGO T-Display 1.14" height
-        constexpr uint8_t ROTATION = 0;          // Screen rotation (0-3)
+        // Display specifications (Landscape mode)
+        constexpr uint16_t SCREEN_WIDTH = 240;   // TTGO T-Display landscape width
+        constexpr uint16_t SCREEN_HEIGHT = 135;  // TTGO T-Display landscape height
+        constexpr uint8_t ROTATION = 1;          // Screen rotation: 1 = Landscape
         constexpr uint8_t BRIGHTNESS = 255;      // Backlight brightness (0-255)
         
         constexpr unsigned long UPDATE_INTERVAL_MS = 500;  // Display refresh rate
