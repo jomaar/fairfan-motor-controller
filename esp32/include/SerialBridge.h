@@ -16,6 +16,7 @@ private:
     HardwareSerial& controllinoSerial;
     String receiveBuffer;
     String lastResponse;
+    String lastCommand;
     unsigned long lastResponseTime;
     
     // Callback for received data
@@ -27,6 +28,7 @@ public:
         : controllinoSerial(Serial1),  // ESP32-C6 uses Serial1 (UART1)
           receiveBuffer(""),
           lastResponse(""),
+          lastCommand(""),
           lastResponseTime(0),
           responseCallback(nullptr) {
         receiveBuffer.reserve(Config::System::SERIAL_BUFFER_SIZE);
@@ -69,6 +71,7 @@ public:
             return false;
         }
         
+        lastCommand = command;  // Store the command
         controllinoSerial.println(command);
         Serial.print(F("[Bridge] Sent: "));
         Serial.println(command);
@@ -107,6 +110,13 @@ public:
      */
     String getLastResponse() const {
         return lastResponse;
+    }
+    
+    /**
+     * Get last sent command
+     */
+    String getLastCommand() const {
+        return lastCommand;
     }
     
     /**

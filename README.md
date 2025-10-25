@@ -4,7 +4,7 @@ A sophisticated dual-motor control system for the FairFan project, built on the 
 
 ## ✨ New: Web Interface Available!
 
-Control your FairFan from any phone or tablet! See [`esp32/`](esp32/) folder for the WiFi-enabled web interface.
+Control your FairFan from any phone or tablet! The web interface runs on a TTGO T-Display (ESP32 with built-in 1.14" IPS display). See [`esp32/`](esp32/) folder for the WiFi-enabled web interface.
 
 ## Features
 
@@ -120,14 +120,18 @@ platformio run --target upload
 platformio device monitor --baud 115200
 ```
 
-### Option 2: With ESP32 Web Interface
+### Option 2: With ESP32 Web Interface (TTGO T-Display)
 
-Add WiFi control for phone/tablet access.
+Add WiFi control with built-in display for phone/tablet access.
+
+**Hardware:**
+- TTGO T-Display (ESP32 with 1.14" IPS LCD)
+- USB cable for programming
 
 **Setup:**
 1. Build and upload Controllino firmware (as above)
-2. Build and upload ESP32 firmware
-3. Connect ESP32 to Controllino via serial
+2. Build and upload ESP32 firmware (see `esp32/` folder)
+3. Connect ESP32 to Controllino via serial (TX2/RX2)
 4. Connect phone to "FairFan-Control" WiFi
 5. Open browser to http://192.168.4.1
 

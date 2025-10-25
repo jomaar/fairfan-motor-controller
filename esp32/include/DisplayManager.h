@@ -27,6 +27,7 @@ private:
     String lastWiFiStatus;
     String lastIPAddress;
     bool lastConnectedStatus;
+    String lastCommand;
     String lastResponse;
     
     // Colors (RGB565 format)
@@ -44,6 +45,7 @@ public:
           lastWiFiStatus(""),
           lastIPAddress(""),
           lastConnectedStatus(false),
+          lastCommand(""),
           lastResponse("") {
 #ifdef HAS_TFT_DISPLAY
         tft = nullptr;
@@ -65,6 +67,18 @@ public:
         tft = new TFT_eSPI();
         Serial.println(F("[Display] TFT_eSPI object created"));
         
+        // Turn on backlight FIRST (critical for TTGO T-Display)
+        #ifdef TTGO_T_DISPLAY
+        Serial.println(F("[Display] Setting up TTGO T-Display backlight..."));
+        pinMode(4, OUTPUT);
+        digitalWrite(4, HIGH);  // Turn on backlight
+        Serial.println(F("[Display] Backlight GPIO 4 set HIGH"));
+        delay(100);  // Give backlight time to power up
+        #else
+        pinMode(Config::Display::TFT_BL, OUTPUT);
+        analogWrite(Config::Display::TFT_BL, Config::Display::BRIGHTNESS);
+        #endif
+        
         tft->init();
         Serial.println(F("[Display] TFT init() called"));
         
@@ -72,30 +86,11 @@ public:
         Serial.print(F("[Display] Rotation set to: "));
         Serial.println(Config::Display::ROTATION);
         
-        // Set backlight FIRST (for TTGO T-Display, pin 4)
-        #ifdef TTGO_T_DISPLAY
-        pinMode(4, OUTPUT);
-        digitalWrite(4, HIGH);  // Turn on backlight
-        Serial.println(F("[Display] TTGO T-Display backlight ON (GPIO 4)"));
-        #else
-        pinMode(Config::Display::TFT_BL, OUTPUT);
-        analogWrite(Config::Display::TFT_BL, Config::Display::BRIGHTNESS);
-        #endif
-        
-        // Test with color fills
-        Serial.println(F("[Display] Testing with color fills..."));
-        tft->fillScreen(TFT_RED);
-        delay(500);
-        tft->fillScreen(TFT_GREEN);
-        delay(500);
-        tft->fillScreen(TFT_BLUE);
-        delay(500);
-        tft->fillScreen(COLOR_BG);  // Black
-        Serial.println(F("[Display] Color test complete"));
-        
-        // Skip startup screen - go directly to black screen
-        Serial.println(F("[Display] Skipping startup screen (stability)"));
-        delay(1000);  // Brief pause to see color test
+        // Just fill with a color to test - NO TEXT
+        Serial.println(F("[Display] Filling screen with cyan..."));
+        tft->fillScreen(COLOR_TITLE);  // Cyan
+        delay(1000);
+        tft->fillScreen(COLOR_BG);     // Black
         
         Serial.println(F("[Display] LCD initialized successfully"));
         return true;
@@ -110,7 +105,7 @@ public:
      * Update display with current status
      */
     void update(const String& wifiStatus, const String& ipAddress, 
-                bool isConnected, const String& response) {
+                bool isConnected, const String& command, const String& response) {
 #ifdef HAS_TFT_DISPLAY
         if (!Config::Display::ENABLED || tft == nullptr) return;
         
@@ -124,6 +119,7 @@ public:
         bool needsRedraw = (wifiStatus != lastWiFiStatus) ||
                           (ipAddress != lastIPAddress) ||
                           (isConnected != lastConnectedStatus) ||
+                          (command != lastCommand) ||
                           (response != lastResponse);
         
         if (!needsRedraw) return;
@@ -132,6 +128,7 @@ public:
         lastWiFiStatus = wifiStatus;
         lastIPAddress = ipAddress;
         lastConnectedStatus = isConnected;
+        lastCommand = command;
         lastResponse = response;
         
         // Redraw screen
@@ -149,12 +146,12 @@ private:
         
         // Use simple text rendering with background color to avoid font issues
         // Title in landscape mode
-        tft->setTextSize(3);
+        tft->setTextSize(4);
         tft->setTextColor(COLOR_TITLE, COLOR_BG);
         tft->setCursor(40, 30);
         tft->print("FairFan");
         
-        tft->setTextSize(1);
+        tft->setTextSize(4);
         tft->setTextColor(COLOR_TEXT, COLOR_BG);
         tft->setCursor(35, 70);
         tft->print("Motor Control");
@@ -167,83 +164,28 @@ private:
     }
     
     /**
-     * Draw current status
+     * Draw current status (using drawString instead of print)
      */
     void drawStatus() {
         tft->fillScreen(COLOR_BG);
         
-        int16_t y = 5;
+        // Try drawString instead of print
+        tft->setTextColor(COLOR_TITLE);
+        tft->drawString("FairFan", 10, 10, 4);  // x, y, font
         
-        // Title (smaller for landscape)
-        tft->setTextSize(2);
-        tft->setTextColor(COLOR_TITLE, COLOR_BG);
-        tft->setCursor(5, y);
-        tft->print("FairFan");
-        y += 20;
+        tft->setTextColor(COLOR_OK);
+        tft->drawString("WiFi OK", 10, 35, 4);
         
-        // Divider line
-        tft->drawLine(0, y, Config::Display::SCREEN_WIDTH, y, COLOR_GRAY);
-        y += 3;
+        tft->setTextColor(COLOR_TITLE);
+        tft->drawString("192.168.4.1", 10, 60, 4);
         
-        // WiFi Status
-        tft->setTextSize(1);
-        tft->setTextColor(COLOR_TEXT, COLOR_BG);
-        tft->setCursor(5, y);
-        tft->print("WiFi: ");
-        tft->setTextColor(COLOR_OK, COLOR_BG);
-        tft->print(lastWiFiStatus);
-        y += 12;
-        
-        // IP Address
-        tft->setTextColor(COLOR_TEXT, COLOR_BG);
-        tft->setCursor(5, y);
-        tft->print("IP: ");
-        tft->setTextColor(COLOR_TITLE, COLOR_BG);
-        tft->print(lastIPAddress);
-        y += 12;
-        
-        // Divider line
-        tft->drawLine(0, y, Config::Display::SCREEN_WIDTH, y, COLOR_GRAY);
-        y += 3;
-        
-        // Controllino Status
-        tft->setTextColor(COLOR_TEXT, COLOR_BG);
-        tft->setCursor(5, y);
-        tft->print("Ctrl: ");
         if (lastConnectedStatus) {
-            tft->setTextColor(COLOR_OK, COLOR_BG);
-            tft->print("OK");
+            tft->setTextColor(COLOR_OK);
+            tft->drawString("Ctrl: OK", 10, 85, 4);
         } else {
-            tft->setTextColor(COLOR_ERROR, COLOR_BG);
-            tft->print("---");
+            tft->setTextColor(COLOR_ERROR);
+            tft->drawString(lastCommand, 10, 85, 4);
         }
-        y += 12;
-        
-        // Last Response (single line, truncated if needed)
-        if (lastResponse.length() > 0) {
-            tft->setTextColor(COLOR_WARNING, COLOR_BG);
-            tft->setCursor(5, y);
-            tft->print("Resp: ");
-            String resp = lastResponse;
-            if (resp.length() > 30) {
-                resp = resp.substring(0, 27) + "...";
-            }
-            tft->print(resp);
-            y += 12;
-        }
-        
-        // Uptime at bottom
-        y = Config::Display::SCREEN_HEIGHT - 15;
-        tft->setTextColor(COLOR_GRAY, COLOR_BG);
-        tft->setCursor(5, y);
-        unsigned long uptime = millis() / 1000;
-        unsigned long minutes = uptime / 60;
-        unsigned long seconds = uptime % 60;
-        tft->print("Up:");
-        tft->print(minutes);
-        tft->print("m ");
-        tft->print(seconds);
-        tft->print("s");
     }
 #endif
 };

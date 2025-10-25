@@ -89,6 +89,7 @@ void loop() {
         wifiManager.getStatusString(),
         wifiManager.getIPAddress(),
         serialBridge.isConnected(),
+        serialBridge.getLastCommand(),
         serialBridge.getLastResponse()
     );
     

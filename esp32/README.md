@@ -1,6 +1,12 @@
-# ESP32 Web Interface
+# ESP32 Web Interface (TTGO T-Display)
 
-WiFi-enabled web interface for FairFan Motor Controller.
+WiFi-enabled web interface for FairFan Motor Controller with built-in 1.14" IPS display.
+
+## Hardware
+
+- **TTGO T-Display**: ESP32 with integrated 1.14" IPS LCD (ST7789, 135x240)
+- Built-in display shows connection status and motor state
+- USB-C for programming and power
 
 ## Features
 
@@ -8,13 +14,17 @@ WiFi-enabled web interface for FairFan Motor Controller.
 - **Web Interface**: Mobile-friendly control panel
 - **Serial Bridge**: Transparent forwarding to Controllino
 - **Real-time Status**: Live connection monitoring
-- **Optional Display**: 128x64 OLED status display
+- **Built-in Display**: Visual feedback on 1.14" IPS LCD
 
 ## Hardware Setup
 
-### Required
-- ESP32 Development Board (ESP32-WROOM-32 or similar)
-- USB cable for programming and power
+### TTGO T-Display Specifications
+
+- ESP32-WROOM-32 (Dual-core, WiFi + Bluetooth)
+- 1.14" IPS LCD Display (ST7789, 135x240)
+- USB-C connector
+- Built-in buttons (2)
+- Integrated display backlight control
 
 ### Connections to Controllino
 
@@ -26,16 +36,7 @@ GPIO16 (RX2)   ←   TX (Serial1)
 GND            ─   GND
 ```
 
-### Optional OLED Display (SSD1306 128x64)
-
-```
-ESP32          Display
-─────────────  ─────────
-GPIO21 (SDA)   SDA
-GPIO22 (SCL)   SCL
-3.3V           VCC
-GND            GND
-```
+**Note**: TTGO T-Display uses GPIO17/16 for Serial2 communication with Controllino.
 
 ## WiFi Configuration
 
@@ -152,18 +153,18 @@ All settings in `include/Config.h`:
 - Connection timeout
 
 ### Serial
-- RX/TX pins
+- RX/TX pins (GPIO17/16 for TTGO T-Display)
 - Baud rate (must match Controllino: 115200)
 - Timeout
 
 ### Display
-- Enable/disable
-- I2C pins
-- Refresh rate
+- TFT_eSPI library configuration
+- ST7789 driver settings (135x240)
+- Backlight control (GPIO4)
 
 ## Display Layout
 
-When OLED is connected, shows:
+The built-in 1.14" IPS display shows:
 
 ```
 ┌─────────────────────┐
@@ -191,12 +192,13 @@ When OLED is connected, shows:
 - Check Controllino is powered and running
 
 ### Display not working
-- Verify I2C address (default 0x3C)
-- Check SDA/SCL connections
-- Ensure display has 3.3V power
+- Verify TFT_eSPI User_Setup.h configuration
+- Check ST7789 driver settings
+- Ensure display dimensions set to 135x240
+- Verify backlight GPIO4 is configured
 
 ### Upload fails
-- Check USB cable connection
+- Check USB-C cable connection
 - Verify correct COM port selected
 - Hold BOOT button during upload if needed
 
