@@ -316,7 +316,18 @@ private:
         </div>
         
         <div class="card">
-            <h2>Response</h2>
+            <h2>Response 
+                <span style="float: right; font-size: 14px;">
+                    <label for="msgLimit" style="font-weight: normal; margin-right: 5px;">Limit:</label>
+                    <input type="number" id="msgLimit" min="10" max="500" value="100" 
+                           style="width: 60px; padding: 2px 5px; border: 1px solid #e5e7eb; border-radius: 4px;"
+                           onchange="updateMessageLimit()">
+                    <button onclick="clearMessages()" 
+                            style="margin-left: 10px; padding: 2px 10px; font-size: 12px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Clear
+                    </button>
+                </span>
+            </h2>
             <div class="response" id="response">Ready...</div>
         </div>
         
@@ -329,6 +340,15 @@ private:
     <script>
         const API_URL = window.location.origin;
         let isConnected = false;
+        let maxMessages = 100;  // Default limit, can be adjusted
+        let messageCount = 0;
+        let lastResponseText = '';  // Track last response to avoid duplicates
+        
+        // Load saved message limit from localStorage
+        if (localStorage.getItem('maxMessages')) {
+            maxMessages = parseInt(localStorage.getItem('maxMessages'));
+            document.getElementById('msgLimit').value = maxMessages;
+        }
         
         // Update status periodically
         setInterval(updateStatus, 1000);
@@ -343,8 +363,10 @@ private:
                     statusEl.textContent = isConnected ? 'Connected' : 'Disconnected';
                     statusEl.className = 'status ' + (isConnected ? 'connected' : 'disconnected');
                     
-                    if (data.lastResponse) {
+                    // Only add if it's a new response (avoid duplicates)
+                    if (data.lastResponse && data.lastResponse !== lastResponseText) {
                         addResponse(data.lastResponse);
+                        lastResponseText = data.lastResponse;
                     }
                 })
                 .catch(err => {
@@ -382,10 +404,59 @@ private:
             sendCommand('deg' + deg);
         }
         
+        function updateMessageLimit() {
+            const input = document.getElementById('msgLimit');
+            const newLimit = parseInt(input.value);
+            
+            // Validate range
+            if (newLimit < 10) {
+                input.value = 10;
+                maxMessages = 10;
+            } else if (newLimit > 500) {
+                input.value = 500;
+                maxMessages = 500;
+            } else {
+                maxMessages = newLimit;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('maxMessages', maxMessages);
+            
+            // Trim existing messages if new limit is lower
+            const responseEl = document.getElementById('response');
+            while (responseEl.children.length > maxMessages) {
+                responseEl.removeChild(responseEl.lastChild);
+            }
+            messageCount = Math.min(messageCount, maxMessages);
+            
+            addResponse('ℹ️ Message limit set to ' + maxMessages);
+        }
+        
+        function clearMessages() {
+            const responseEl = document.getElementById('response');
+            responseEl.innerHTML = '<div>Ready...</div>';
+            messageCount = 0;
+            lastResponseText = '';
+        }
+        
         function addResponse(text) {
             const responseEl = document.getElementById('response');
             const time = new Date().toLocaleTimeString();
-            responseEl.innerHTML = `[${time}] ${text}<br>` + responseEl.innerHTML;
+            
+            // Add new message at the top
+            const newMessage = document.createElement('div');
+            newMessage.innerHTML = `[${time}] ${text}`;
+            responseEl.insertBefore(newMessage, responseEl.firstChild);
+            
+            // Increment counter and trim old messages
+            messageCount++;
+            if (messageCount > maxMessages) {
+                // Remove oldest messages (from the bottom)
+                while (responseEl.children.length > maxMessages) {
+                    responseEl.removeChild(responseEl.lastChild);
+                }
+                messageCount = maxMessages;
+            }
         }
     </script>
 </body>

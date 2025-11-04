@@ -298,7 +298,38 @@ private:
             Serial.println(F("Motor 2: Stopped"));
         }
         
-        // Emergency stop all
+        // Soft stop: Motor1 to home + Motor2 homing (parallel)
+        else if (inputString == "softstop") {
+            // Stop sequence first
+            sequence.stop();
+            Serial.println(F("SOFT STOP: Returning to home positions..."));
+            
+            // Motor1: Go to home (0°)
+            long currentPos = motor1.getPosition();
+            if (currentPos != 0) {
+                float degreesToMove = abs(motor1.getPositionDegrees());
+                bool directionCW = (currentPos < 0);
+                
+                Serial.print(F("  Motor1: Returning to 0° ("));
+                Serial.print(degreesToMove, 1);
+                Serial.print(F("° "));
+                Serial.print(directionCW ? F("CW") : F("CCW"));
+                Serial.println(F(")"));
+                
+                motor1.setDirection(directionCW ? Config::CW_RIGHT : Config::CCW_LEFT);
+                delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+                delayMicroseconds(Config::Timing::DIR_SETUP_US);
+                motor1.startMovement(degreesToMove, false);
+            } else {
+                Serial.println(F("  Motor1: Already at home (0°)"));
+            }
+            
+            // Motor2: Start homing (runs parallel to Motor1)
+            Serial.println(F("  Motor2: Starting homing sequence..."));
+            motor2.startHoming();
+        }
+        
+        // Emergency stop all (hard stop)
         else if (inputString == "stopall") {
             motor1.disable();
             motor2.disable();
@@ -387,8 +418,9 @@ private:
         Serial.println(F("\nSequence (Synchronized Oscillation):"));
         Serial.println(F("  seq1     - Start sequence (Motor1: 0°⟷720°, Motor2: overlap at ends)"));
         Serial.println(F("  stopseq  - Stop sequence immediately"));
-        Serial.println(F("\nEmergency:"));
-        Serial.println(F("  stopall  - STOP ALL (motors + sequence)"));
+        Serial.println(F("\nStop Commands:"));
+        Serial.println(F("  softstop - Soft stop: Motor1→home (0°) + Motor2→home (parallel)"));
+        Serial.println(F("  stopall  - Emergency stop: ALL motors immediately"));
         Serial.println(F("\nOther:"));
         Serial.println(F("  help     - Show this help message"));
         Serial.println(F("==========================\n"));

@@ -3,6 +3,14 @@
 
 #include <Arduino.h>
 #include <Controllino.h>
+#include "SpeedProfiles.h"
+
+// ============================================================
+// ACTIVE SPEED PROFILE SELECTION
+// ============================================================
+// Ändere diese Zahl (1, 2, oder 3) um zwischen Profilen zu wechseln
+// Profile sind in SpeedProfiles.h definiert
+#define ACTIVE_PROFILE 2
 
 namespace Config {
     // Motor Direction Constants (more readable than LOW/HIGH)
@@ -16,16 +24,32 @@ namespace Config {
         constexpr uint16_t STEPS_PER_REV = 200;      // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;            // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 20;           // Gear reduction ratio (20:1)
-        constexpr float TARGET_RPM = 4.0f;          // Target speed at output shaft (after gear reduction)
         constexpr float TEST_DEGREES = 180.0f;       // Movement angle for 'go1' test command (half rotation)
-        constexpr float MAX_DEGREES = 720.0f;       // Maximum allowed rotation (2 full rotations = safety limit)
+        constexpr float MAX_DEGREES = 360.0f;        // Maximum allowed rotation (1 full rotation = safety limit)
         constexpr float SOFT_LIMIT_DEGREES = 900.0f; // Soft warning limit (2.5 rotations)
         
-        // Speed Profile (calculated relative to 360° rotation for consistent acceleration)
-        constexpr float ACCEL_ZONE = 0.05f;          // Acceleration zone (5% of 360° = 18°)
-        constexpr float DECEL_ZONE = 0.05f;          // Deceleration zone (5% of 360° = 18°)
-        constexpr float POWER_CURVE = 0.8f;          // Power curve exponent for acceleration/deceleration profile (0.8 = gentle curve)
-        constexpr float MIN_SPEED_FACTOR = 0.1f;     // Minimum speed as fraction of target speed (0.1 = 10% minimum to prevent stalling)
+        // Speed Profile - loaded from SpeedProfiles.h based on ACTIVE_PROFILE
+        #if ACTIVE_PROFILE == 1
+            constexpr float TARGET_RPM = M1_P1_RPM;
+            constexpr float ACCEL_ZONE = M1_P1_ACCEL;
+            constexpr float DECEL_ZONE = M1_P1_DECEL;
+            constexpr float POWER_CURVE = M1_P1_CURVE;
+            constexpr float MIN_SPEED_FACTOR = M1_P1_MINSPEED;
+        #elif ACTIVE_PROFILE == 2
+            constexpr float TARGET_RPM = M1_P2_RPM;
+            constexpr float ACCEL_ZONE = M1_P2_ACCEL;
+            constexpr float DECEL_ZONE = M1_P2_DECEL;
+            constexpr float POWER_CURVE = M1_P2_CURVE;
+            constexpr float MIN_SPEED_FACTOR = M1_P2_MINSPEED;
+        #elif ACTIVE_PROFILE == 3
+            constexpr float TARGET_RPM = M1_P3_RPM;
+            constexpr float ACCEL_ZONE = M1_P3_ACCEL;
+            constexpr float DECEL_ZONE = M1_P3_DECEL;
+            constexpr float POWER_CURVE = M1_P3_CURVE;
+            constexpr float MIN_SPEED_FACTOR = M1_P3_MINSPEED;
+        #else
+            #error "ACTIVE_PROFILE must be 1, 2, or 3"
+        #endif
         
         // Position Tracking & FRAM
         // Motor1: 20 gear × 200 steps × 8 microsteps = 32000 steps/360°
@@ -44,13 +68,28 @@ namespace Config {
         constexpr uint16_t STEPS_PER_REV = 200;                  // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;                        // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 50;                       // Gear reduction ratio (50:1)
-        constexpr float TARGET_RPM = 0.8f;                       // Target speed at output shaft (after gear reduction)
-        constexpr float OFFSET_DEGREES = 0.5f;                  // Offset from right limit switch after homing (safety margin)
-        // Speed Profile (calculated relative to 360° rotation for consistent acceleration)
-        constexpr float ACCEL_ZONE = 0.05f;          // Acceleration zone (5% of 360° = 18°)
-        constexpr float DECEL_ZONE = 0.05f;          // Deceleration zone (5% of 360° = 18°)
-        constexpr float POWER_CURVE = 0.9f;          // Power curve exponent for acceleration/deceleration profile (1.0 = linear curve)
-        constexpr float MIN_SPEED_FACTOR = 0.1f;     // Minimum speed as fraction of target speed (0.1 = 10% minimum to prevent stalling)
+        constexpr float OFFSET_DEGREES = 0.5f;                   // Offset from right limit switch after homing (safety margin)
+        
+        // Speed Profile - loaded from SpeedProfiles.h based on ACTIVE_PROFILE
+        #if ACTIVE_PROFILE == 1
+            constexpr float TARGET_RPM = M2_P1_RPM;
+            constexpr float ACCEL_ZONE = M2_P1_ACCEL;
+            constexpr float DECEL_ZONE = M2_P1_DECEL;
+            constexpr float POWER_CURVE = M2_P1_CURVE;
+            constexpr float MIN_SPEED_FACTOR = M2_P1_MINSPEED;
+        #elif ACTIVE_PROFILE == 2
+            constexpr float TARGET_RPM = M2_P2_RPM;
+            constexpr float ACCEL_ZONE = M2_P2_ACCEL;
+            constexpr float DECEL_ZONE = M2_P2_DECEL;
+            constexpr float POWER_CURVE = M2_P2_CURVE;
+            constexpr float MIN_SPEED_FACTOR = M2_P2_MINSPEED;
+        #elif ACTIVE_PROFILE == 3
+            constexpr float TARGET_RPM = M2_P3_RPM;
+            constexpr float ACCEL_ZONE = M2_P3_ACCEL;
+            constexpr float DECEL_ZONE = M2_P3_DECEL;
+            constexpr float POWER_CURVE = M2_P3_CURVE;
+            constexpr float MIN_SPEED_FACTOR = M2_P3_MINSPEED;
+        #endif
     }
     
     // Timing
@@ -72,9 +111,17 @@ namespace Config {
         constexpr bool AUTO_START_AFTER_HOMING = true;      // If true, seq1 starts automatically after Motor2 homing completes
         
         // Motor2 trigger positions (symmetric around Motor1 oscillation range)
-        constexpr float MOTOR2_TRIGGER_OFFSET = 60.0f;      // Trigger offset from Motor1 endpoints (degrees)
-        constexpr float MOTOR2_TRIGGER_HIGH = Motor1::MAX_DEGREES - MOTOR2_TRIGGER_OFFSET;  // 720° - 40° = 680°
-        constexpr float MOTOR2_TRIGGER_LOW = MOTOR2_TRIGGER_OFFSET;                          // 40° (symmetric)
+        // Loaded from SpeedProfiles.h based on ACTIVE_PROFILE
+        #if ACTIVE_PROFILE == 1
+            constexpr float MOTOR2_TRIGGER_OFFSET = M2_P1_TRIGGER_OFFSET;
+        #elif ACTIVE_PROFILE == 2
+            constexpr float MOTOR2_TRIGGER_OFFSET = M2_P2_TRIGGER_OFFSET;
+        #elif ACTIVE_PROFILE == 3
+            constexpr float MOTOR2_TRIGGER_OFFSET = M2_P3_TRIGGER_OFFSET;
+        #endif
+        
+        constexpr float MOTOR2_TRIGGER_HIGH = Motor1::MAX_DEGREES - MOTOR2_TRIGGER_OFFSET;
+        constexpr float MOTOR2_TRIGGER_LOW = MOTOR2_TRIGGER_OFFSET;
     }
     
     // Homing Behavior
