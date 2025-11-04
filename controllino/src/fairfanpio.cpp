@@ -124,8 +124,10 @@ void setup() {
     
     Serial.println(F("Setup complete, entering main loop..."));
     
-    // Start automatic homing of Motor 2 (if configured)
-    if (Config::Homing::AUTO_START_ON_BOOT) {
+    // Note: Autostart sequence (gotohome1 -> home -> seq1) is handled in loop()
+    if (Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING) {
+        Serial.println(F("Autostart enabled: gotohome1 -> home -> seq1"));
+    } else if (Config::Homing::AUTO_START_ON_BOOT) {
         Serial.println(F("Starting automatic homing of Motor2..."));
         motor2.startHoming();
     } else {
@@ -136,11 +138,39 @@ void setup() {
 // === Main Loop ===
 void loop() {
     static bool firstLoop = true;
-    static bool autoStartExecuted = false;
+    static enum class AutoStartState {
+        IDLE,
+        GOTO_HOME1,
+        WAIT_MOTOR1_HOME,
+        START_HOMING,
+        WAIT_HOMING,
+        START_SEQUENCE,
+        COMPLETE
+    } autoStartState = AutoStartState::IDLE;
     
     if (firstLoop) {
         Serial.println(F("Loop started!"));
         firstLoop = false;
+        
+        // Initialize autostart sequence if enabled
+        if (Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING) {
+            long currentPos = motor1.getPosition();
+            if (currentPos != 0) {
+                Serial.println(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
+                float degreesToMove = abs(motor1.getPositionDegrees());
+                bool directionCW = (currentPos < 0);
+                
+                motor1.setDirection(directionCW ? Config::CW_RIGHT : Config::CCW_LEFT);
+                delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+                delayMicroseconds(Config::Timing::DIR_SETUP_US);
+                motor1.startMovement(degreesToMove, false);
+                
+                autoStartState = AutoStartState::WAIT_MOTOR1_HOME;
+            } else {
+                Serial.println(F("=== AUTOSTART: Motor1 already at home, starting homing ==="));
+                autoStartState = AutoStartState::START_HOMING;
+            }
+        }
     }
     
     // Update debounced limit switches
@@ -149,18 +179,39 @@ void loop() {
     // Process serial commands
     commandHandler.update();
     
-    // Update homing state machine if active
-    if (motor2.getHomingState() != HomingState::IDLE) {
-        motor2.updateHoming();
+    // Autostart state machine
+    switch (autoStartState) {
+        case AutoStartState::WAIT_MOTOR1_HOME:
+            if (motor1.isMovementComplete()) {
+                Serial.println(F("=== AUTOSTART: Step 2 - Motor1 at home, starting Motor2 homing ==="));
+                autoStartState = AutoStartState::START_HOMING;
+            }
+            break;
+            
+        case AutoStartState::START_HOMING:
+            motor2.startHoming();
+            autoStartState = AutoStartState::WAIT_HOMING;
+            break;
+            
+        case AutoStartState::WAIT_HOMING:
+            if (motor2.getHomingState() == HomingState::IDLE && motor2.isHomingComplete()) {
+                Serial.println(F("=== AUTOSTART: Step 3 - Homing complete, starting seq1 ==="));
+                sequence.start();
+                autoStartState = AutoStartState::COMPLETE;
+            }
+            break;
+            
+        case AutoStartState::IDLE:
+        case AutoStartState::GOTO_HOME1:
+        case AutoStartState::START_SEQUENCE:
+        case AutoStartState::COMPLETE:
+            // Nothing to do
+            break;
     }
     
-    // Auto-start sequence after homing completes (ONLY if both auto-boot and auto-sequence are enabled)
-    if (Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING && !autoStartExecuted) {
-        if (motor2.getHomingState() == HomingState::IDLE && motor2.isHomingComplete()) {
-            Serial.println(F("Auto-starting seq1 after automatic homing..."));
-            sequence.start();
-            autoStartExecuted = true;
-        }
+    // Update homing state machine if active (including COMPLETE state for transition to IDLE)
+    if (motor2.getHomingState() != HomingState::IDLE) {
+        motor2.updateHoming();
     }
     
     // Update sequence state machine if active
@@ -193,6 +244,20 @@ void loop() {
         Serial.println(F("°)"));
     }
     motor1WasMoving = motor1.isEnabled();
+    
+    // Track Motor2 oscillation completion to verify NO drift
+    static bool motor2WasMoving = false;
+    if (motor2WasMoving && !motor2.isEnabled() && motor2.isOscillating()) {
+        Serial.print(F("Motor2 oscillation COMPLETE: "));
+        Serial.print(motor2.getStepCount());
+        Serial.print(F(" steps (expected "));
+        Serial.print(motor2.getOscillationSteps());
+        Serial.println(F(")"));
+        if (motor2.getStepCount() != motor2.getOscillationSteps()) {
+            Serial.println(F("WARNING: Step count mismatch! DRIFT detected!"));
+        }
+    }
+    motor2WasMoving = motor2.isEnabled();
     
     if (motor2.isEnabled()) {
         float speedFactor2 = motor2.updateSpeedProfile();

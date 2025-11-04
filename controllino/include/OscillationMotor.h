@@ -8,8 +8,9 @@
 enum class HomingState {
     IDLE,
     MOVE_LEFT,
+    OFFSET_LEFT,
     MOVE_RIGHT,
-    OFFSET,
+    OFFSET_RIGHT,
     COMPLETE
 };
 
@@ -21,7 +22,8 @@ private:
     
     // Homing state machine
     HomingState homingState;
-    unsigned long homeRangeSteps;
+    unsigned long homeRangeSteps;      // Usable oscillation range (between offsets)
+    unsigned long totalRangeSteps;     // Total range (switch to switch)
     unsigned long offsetSteps;
     
     // Speed profile variables
@@ -60,7 +62,7 @@ public:
                        Config::Motor2::STEPS_PER_REV, Config::Motor2::MICROSTEPS,
                        Config::Motor2::GEAR_RATIO, Config::Motor2::TARGET_RPM),
           leftSwitch(), rightSwitch(),
-          homingState(HomingState::IDLE), homeRangeSteps(0), offsetSteps(0),
+          homingState(HomingState::IDLE), homeRangeSteps(0), totalRangeSteps(0), offsetSteps(0),
           currentSpeedFactor(1.0f), accelEndStep(0), decelStartStep(0),
           speedProfileEnabled(false),
           accelZoneSteps((unsigned long)(Config::Motor2::GEAR_RATIO * Config::Motor2::STEPS_PER_REV * Config::Motor2::MICROSTEPS * Config::Motor2::ACCEL_ZONE)),
@@ -104,7 +106,7 @@ public:
         // Force stop any ongoing movement first
         stopMovement();
         
-        homingState = HomingState::MOVE_LEFT;  // Start by moving to LEFT switch first
+        homingState = HomingState::MOVE_RIGHT;  // Start by moving to RIGHT switch first
         homeRangeSteps = 0;
         isHomed = false;
         speedProfileEnabled = false; // Disable during homing
@@ -116,12 +118,12 @@ public:
             case HomingState::IDLE:
                 break;
                 
-            case HomingState::MOVE_LEFT:
+            case HomingState::MOVE_RIGHT:
                 if (!enabled) {
-                    // Check if already at LEFT switch - if so, move away first
-                    if (isLeftSwitchPressed()) {
-                        Serial.println(F("Homing Motor 2: Already at LEFT, moving away..."));
-                        setDirection(Config::CCW_LEFT); // Move RIGHT first
+                    // Check if already at RIGHT switch - if so, move away first
+                    if (isRightSwitchPressed()) {
+                        Serial.println(F("Homing Motor 2: Already at RIGHT, moving away..."));
+                        setDirection(Config::CW_RIGHT); // Move LEFT first
                         delay(Config::Timing::DIR_CHANGE_DELAY_MS);
                         delayMicroseconds(Config::Timing::DIR_SETUP_US);
                         resetStepCount();
@@ -133,11 +135,11 @@ public:
                             // Motor will auto-disable when done
                             delay(10);
                         }
-                        Serial.println(F("Homing Motor 2: Freed from LEFT switch"));
+                        Serial.println(F("Homing Motor 2: Freed from RIGHT switch"));
                     }
                     
-                    Serial.println(F("Homing Motor 2: Moving to LEFT switch..."));
-                    setDirection(Config::CW_RIGHT); // Inverted: CW signal for LEFT movement
+                    Serial.println(F("Homing Motor 2: Moving to RIGHT switch..."));
+                    setDirection(Config::CCW_LEFT); // Inverted: CCW signal for RIGHT movement
                     delay(Config::Timing::DIR_CHANGE_DELAY_MS);
                     delayMicroseconds(Config::Timing::DIR_SETUP_US);
                     resetStepCount();
@@ -145,19 +147,43 @@ public:
                     enabled = true;
                 }
                 
-                if (isLeftSwitchPressed()) {
+                if (isRightSwitchPressed()) {
                     enabled = false;
-                    currentPosition = 0;
-                    Serial.println(F("Homing Motor 2: Left limit reached"));
+                    currentPosition = 0;  // RIGHT is position 0 for now
+                    Serial.println(F("Homing Motor 2: Right limit reached"));
                     delay(500);
-                    homingState = HomingState::MOVE_RIGHT;  // Next: move to RIGHT
+                    resetStepCount(); // Reset for offset movement
+                    homingState = HomingState::OFFSET_RIGHT;  // Next: offset from RIGHT
                 }
                 break;
                 
-            case HomingState::MOVE_RIGHT:
+            case HomingState::OFFSET_RIGHT:
                 if (!enabled) {
-                    Serial.println(F("Homing Motor 2: Moving to RIGHT switch..."));
-                    setDirection(Config::CCW_LEFT); // Inverted: CCW signal for RIGHT movement
+                    // Check if we just finished the offset movement
+                    if (stepCount >= offsetSteps) {
+                        currentPosition = offsetSteps;  // Now at offset from RIGHT
+                        Serial.print(F("Homing Motor 2: Offset from RIGHT complete, position = "));
+                        Serial.println(currentPosition);
+                        homingState = HomingState::MOVE_LEFT;  // Next: move to LEFT
+                    } else {
+                        // Start the offset movement
+                        Serial.print(F("Homing Motor 2: Moving offset "));
+                        Serial.print(offsetSteps);
+                        Serial.println(F(" steps to LEFT"));
+                        setDirection(Config::CW_RIGHT); // LEFT movement
+                        delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+                        delayMicroseconds(Config::Timing::DIR_SETUP_US);
+                        resetStepCount();
+                        totalSteps = offsetSteps;
+                        enabled = true;
+                    }
+                }
+                break;
+                
+            case HomingState::MOVE_LEFT:
+                if (!enabled) {
+                    Serial.println(F("Homing Motor 2: Moving to LEFT switch..."));
+                    setDirection(Config::CW_RIGHT); // Inverted: CW signal for LEFT movement
                     delay(Config::Timing::DIR_CHANGE_DELAY_MS);
                     delayMicroseconds(Config::Timing::DIR_SETUP_US);
                     resetStepCount();
@@ -166,48 +192,60 @@ public:
                     enabled = true;
                 }
                 
-                if (isRightSwitchPressed()) {
+                if (isLeftSwitchPressed()) {
                     enabled = false;
-                    homeRangeSteps = stepCount;  // Save the range
-                    Serial.print(F("Homing Motor 2: Right limit reached, Range = "));
-                    Serial.print(homeRangeSteps);
+                    // Total range from RIGHT switch to LEFT switch
+                    // = offsetSteps (RIGHT offset) + stepCount (steps from RIGHT offset to LEFT switch)
+                    totalRangeSteps = stepCount + offsetSteps;
+                    Serial.print(F("Homing Motor 2: Left limit reached, total range = "));
+                    Serial.print(totalRangeSteps);
                     Serial.println(F(" steps"));
                     delay(500);
                     resetStepCount(); // Reset for offset movement
-                    homingState = HomingState::OFFSET;  // Next: offset back to LEFT
+                    homingState = HomingState::OFFSET_LEFT;  // Next: offset back from LEFT
                 }
                 break;
                 
-            case HomingState::OFFSET:
-                if (enabled) {
-                    // Offset movement is in progress, wait for completion
-                    // ISR will auto-disable when stepCount >= totalSteps
-                } else if (stepCount >= offsetSteps) {
-                    // Offset movement completed
-                    currentPosition = homeRangeSteps - offsetSteps;  // Position is 10° from right
-                    Serial.print(F("Homing Motor 2: Offset complete, position = "));
-                    Serial.println(currentPosition);
-                    homingState = HomingState::COMPLETE;
-                } else {
-                    // Start offset movement (first time entering this state)
-                    setDirection(Config::CW_RIGHT); // Inverted: CW signal for LEFT movement
-                    delay(Config::Timing::DIR_CHANGE_DELAY_MS);
-                    delayMicroseconds(Config::Timing::DIR_SETUP_US);
-                    totalSteps = offsetSteps;
-                    enabled = true;
-                    Serial.print(F("Homing Motor 2: Moving offset "));
-                    Serial.print(offsetSteps);
-                    Serial.println(F(" steps to LEFT"));
+            case HomingState::OFFSET_LEFT:
+                if (!enabled) {
+                    // Check if we just finished the offset movement
+                    if (stepCount >= offsetSteps) {
+                        // Calculate final position and usable range
+                        currentPosition = totalRangeSteps - offsetSteps;  // Now at LEFT offset position
+                        homeRangeSteps = totalRangeSteps - (2 * offsetSteps);  // Usable range between offsets
+                        
+                        Serial.print(F("Homing Motor 2: Offset from LEFT complete, position = "));
+                        Serial.println(currentPosition);
+                        Serial.print(F("Homing Motor 2: Usable oscillation range = "));
+                        Serial.print(homeRangeSteps);
+                        Serial.println(F(" steps"));
+                        
+                        // Mark as homed BEFORE changing state
+                        isHomed = true;
+                        speedProfileEnabled = true;
+                        Serial.println(F("Homing Motor 2: Complete!"));
+                        
+                        homingState = HomingState::COMPLETE;
+                    } else {
+                        // Start the offset movement
+                        Serial.print(F("Homing Motor 2: Moving offset "));
+                        Serial.print(offsetSteps);
+                        Serial.println(F(" steps to RIGHT"));
+                        setDirection(Config::CCW_LEFT); // RIGHT movement
+                        delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+                        delayMicroseconds(Config::Timing::DIR_SETUP_US);
+                        resetStepCount();
+                        totalSteps = offsetSteps;
+                        enabled = true;
+                    }
                 }
                 break;
                 
             case HomingState::COMPLETE:
-                isHomed = true;
-                speedProfileEnabled = true; // Enable after homing
+                // Transition to IDLE (everything already set in OFFSET_RIGHT)
                 enabled = false; // Make sure motor is stopped
                 resetStepCount();
                 totalSteps = 0;
-                Serial.println(F("Homing Motor 2: Complete!"));
                 homingState = HomingState::IDLE;
                 break;
         }
@@ -230,46 +268,47 @@ public:
     void startOscillation(bool directionRight) {
         if (!isHomed) return;
         
+        Serial.print(F("Motor2 startOscillation: direction="));
+        Serial.print(directionRight ? "RIGHT" : "LEFT");
+        Serial.print(F(", currentPos="));
+        Serial.print(currentPosition);
+        Serial.print(F(", homeRange="));
+        Serial.println(homeRangeSteps);
+        
         // Direction is inverted for this motor: RIGHT=CCW signal, LEFT=CW signal
         setDirection(directionRight ? Config::CCW_LEFT : Config::CW_RIGHT);
         delay(Config::Timing::DIR_CHANGE_DELAY_MS);
         delayMicroseconds(Config::Timing::DIR_SETUP_US);
         
-        // FULL continuous movement: Motor2 moves the ENTIRE home range
-        // This allows continuous movement through Motor1's direction change
-        // Motor2 runs from one side to the other without stopping
+        // Move EXACTLY homeRangeSteps in the specified direction
+        // This ensures NO drift - every step is counted precisely
         totalSteps = homeRangeSteps;
         
         // Use pre-calculated accel/decel zones (relative to 360°)
-        // This keeps acceleration consistent regardless of movement distance
         accelEndStep = accelZoneSteps;
         decelStartStep = (totalSteps > decelZoneSteps) ? (totalSteps - decelZoneSteps) : 0;
         
         resetStepCount();
         currentSpeedFactor = Config::Motor2::MIN_SPEED_FACTOR;
-        speedProfileEnabled = true;  // Enable speed ramping
+        speedProfileEnabled = true;
         enabled = true;
-    }
-    
-    // Half oscillation for synchronized sequence
-    void startHalfOscillation(bool directionRight) {
-        if (!isHomed) return;
         
-        // Direction is inverted for this motor: RIGHT=CCW signal, LEFT=CW signal
-        setDirection(directionRight ? Config::CCW_LEFT : Config::CW_RIGHT);
-        delay(Config::Timing::DIR_CHANGE_DELAY_MS);
-        delayMicroseconds(Config::Timing::DIR_SETUP_US);
+        // After movement completes, update currentPosition
+        // After RIGHT->LEFT homing:
+        // - currentPosition after homing = totalRangeSteps - offsetSteps (high, near LEFT)
+        // - Position 0 = near RIGHT offset
+        // LEFT movement: moves towards higher position (away from 0, towards totalRangeSteps)
+        // RIGHT movement: moves towards lower position (towards 0)
+        if (!directionRight) {
+            // Moving LEFT towards totalRangeSteps - offsetSteps (high position)
+            currentPosition = totalRangeSteps - offsetSteps;
+        } else {
+            // Moving RIGHT towards offsetSteps (low position)
+            currentPosition = offsetSteps;
+        }
         
-        // HALF oscillation range
-        totalSteps = (homeRangeSteps - (2 * offsetSteps) - 50) / 2;
-        
-        // Use pre-calculated accel/decel zones (relative to 360°)
-        accelEndStep = accelZoneSteps;
-        decelStartStep = (totalSteps > decelZoneSteps) ? (totalSteps - decelZoneSteps) : 0;
-        
-        resetStepCount();
-        currentSpeedFactor = Config::Motor2::MIN_SPEED_FACTOR;
-        enabled = true;
+        Serial.print(F("Motor2: Starting oscillation, will end at position "));
+        Serial.println(currentPosition);
     }
     
     // Update speed profile (call from main loop)
@@ -294,6 +333,12 @@ public:
     
     void stopOscillation() {
         stopMovement();  // Alias for semantic clarity
+        speedProfileEnabled = false;
+        Serial.println(F("Motor2: Oscillation stopped"));
+    }
+    
+    bool isOscillating() const {
+        return speedProfileEnabled;
     }
     
     unsigned long getTotalSteps() const {

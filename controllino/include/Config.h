@@ -16,9 +16,8 @@ namespace Config {
         constexpr uint16_t STEPS_PER_REV = 200;      // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;            // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 20;           // Gear reduction ratio (20:1)
-        constexpr float TARGET_RPM = 1.5f;          // Target speed at output shaft (after gear reduction)
+        constexpr float TARGET_RPM = 4.0f;          // Target speed at output shaft (after gear reduction)
         constexpr float TEST_DEGREES = 180.0f;       // Movement angle for 'go1' test command (half rotation)
-        constexpr float S00  // Movement angle for seq1 oscillation (2 full rotations)
         constexpr float MAX_DEGREES = 720.0f;       // Maximum allowed rotation (2 full rotations = safety limit)
         constexpr float SOFT_LIMIT_DEGREES = 900.0f; // Soft warning limit (2.5 rotations)
         
@@ -45,12 +44,12 @@ namespace Config {
         constexpr uint16_t STEPS_PER_REV = 200;                  // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;                        // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 50;                       // Gear reduction ratio (50:1)
-        constexpr float TARGET_RPM = 0.5f;                       // Target speed at output shaft (after gear reduction)
-        constexpr float OFFSET_DEGREES = 1.0f;                  // Offset from right limit switch after homing (safety margin)
+        constexpr float TARGET_RPM = 0.8f;                       // Target speed at output shaft (after gear reduction)
+        constexpr float OFFSET_DEGREES = 0.5f;                  // Offset from right limit switch after homing (safety margin)
         // Speed Profile (calculated relative to 360° rotation for consistent acceleration)
-        constexpr float ACCEL_ZONE = 0.10f;          // Acceleration zone (10% of 360° = 36°)
-        constexpr float DECEL_ZONE = 0.10f;          // Deceleration zone (10% of 360° = 36°)
-        constexpr float POWER_CURVE = 0.8f;          // Power curve exponent for acceleration/deceleration profile (0.8 = gentle curve)
+        constexpr float ACCEL_ZONE = 0.05f;          // Acceleration zone (5% of 360° = 18°)
+        constexpr float DECEL_ZONE = 0.05f;          // Deceleration zone (5% of 360° = 18°)
+        constexpr float POWER_CURVE = 0.9f;          // Power curve exponent for acceleration/deceleration profile (1.0 = linear curve)
         constexpr float MIN_SPEED_FACTOR = 0.1f;     // Minimum speed as fraction of target speed (0.1 = 10% minimum to prevent stalling)
     }
     
@@ -70,17 +69,17 @@ namespace Config {
     
     // Sequence Behavior
     namespace Sequence {
-        constexpr bool AUTO_START_AFTER_HOMING = false;      // If true, seq1 starts automatically after Motor2 homing completes
+        constexpr bool AUTO_START_AFTER_HOMING = true;      // If true, seq1 starts automatically after Motor2 homing completes
         
-        // Synchronized oscillation with overlap
-        constexpr float MOTOR1_MAX_DEGREES = 720.0f;         // Motor1 oscillates between 0° and this value
-        constexpr float MOTOR2_OVERLAP_DEGREES = 40.0f;      // Overlap zone: Motor2 oscillates in last/first N° of Motor1
-        constexpr float MOTOR2_OVERLAP_PERCENTAGE = 0.5f;    // 50% of Motor2 movement in each overlap zone (last/first degrees)
+        // Motor2 trigger positions (symmetric around Motor1 oscillation range)
+        constexpr float MOTOR2_TRIGGER_OFFSET = 60.0f;      // Trigger offset from Motor1 endpoints (degrees)
+        constexpr float MOTOR2_TRIGGER_HIGH = Motor1::MAX_DEGREES - MOTOR2_TRIGGER_OFFSET;  // 720° - 40° = 680°
+        constexpr float MOTOR2_TRIGGER_LOW = MOTOR2_TRIGGER_OFFSET;                          // 40° (symmetric)
     }
     
     // Homing Behavior
     namespace Homing {
-        constexpr bool AUTO_START_ON_BOOT = false;            // If true, homing starts automatically on boot; if false, only on command
+        constexpr bool AUTO_START_ON_BOOT = true;            // If true, homing starts automatically on boot; if false, only on command
     }
     
     // FRAM Configuration
