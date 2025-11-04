@@ -19,8 +19,14 @@ protected:
     volatile unsigned long stepCount;
     volatile bool stepLevel;
     volatile bool enabled;
+    volatile bool currentDirection;  // Current movement direction (CW/CCW)
     unsigned long totalSteps;
     float stepFreq;
+    float speedMultiplier;  // Global speed adjustment (default 1.0)
+    
+    // Position tracking (for persistent storage)
+    volatile long currentPosition;      // Signed position: + = CW, - = CCW
+    volatile bool positionChanged;      // Flag for async FRAM update
     
     // Calculate step frequency
     void calculateStepFreq() {
@@ -33,7 +39,8 @@ public:
                  uint16_t spr, uint8_t ms, uint8_t gr, float rpm)
         : stepPin(step), dirPin(dir), 
           stepsPerRev(spr), microsteps(ms), gearRatio(gr), targetRPM(rpm),
-          stepCount(0), stepLevel(false), enabled(false), totalSteps(0) {
+          stepCount(0), stepLevel(false), enabled(false), currentDirection(true),
+          totalSteps(0), speedMultiplier(1.0f), currentPosition(0), positionChanged(false) {
         calculateStepFreq();
     }
     
@@ -51,7 +58,12 @@ public:
         if (enabled && stepCount < totalSteps) {
             stepLevel = !stepLevel;
             digitalWrite(stepPin, stepLevel);
-            if (!stepLevel) stepCount++;
+            if (!stepLevel) {
+                stepCount++;
+                // Update position: CW = +1, CCW = -1
+                currentPosition += currentDirection ? 1 : -1;
+                positionChanged = true;  // Flag for main loop
+            }
         } else {
             enabled = false;
             stepLevel = false;
@@ -61,6 +73,7 @@ public:
     // Control methods
     void setDirection(bool dirHigh) {
         digitalWrite(dirPin, dirHigh ? HIGH : LOW);
+        currentDirection = dirHigh;  // Track for position calculation
     }
     
     void enable() {
@@ -69,6 +82,10 @@ public:
     
     void disable() {
         enabled = false;
+    }
+    
+    void stopMovement() {
+        disable();  // Alias for clarity
     }
     
     void resetStepCount() {
@@ -85,9 +102,26 @@ public:
     inline unsigned long getTotalSteps() const { return totalSteps; }
     inline float getStepFreq() const { return stepFreq; }
     
+    // Position tracking
+    inline long getPosition() const { return currentPosition; }
+    inline bool hasPositionChanged() const { return positionChanged; }
+    inline void clearPositionChanged() { positionChanged = false; }
+    inline void setPosition(long pos) { 
+        currentPosition = pos; 
+        positionChanged = true;
+    }
+    
     // Calculate timer period in microseconds
     unsigned long getTimerPeriod() const {
-        return (unsigned long)(500000.0f / stepFreq);
+        return (unsigned long)(500000.0f / (stepFreq * speedMultiplier));
+    }
+    
+    void setSpeedMultiplier(float multiplier) {
+        speedMultiplier = max(0.1f, min(10.0f, multiplier));  // Clamp 0.1x - 10x
+    }
+    
+    float getSpeedMultiplier() const {
+        return speedMultiplier;
     }
 };
 

@@ -101,6 +101,9 @@ public:
     
     // Homing state machine
     void startHoming() {
+        // Force stop any ongoing movement first
+        stopMovement();
+        
         homingState = HomingState::MOVE_LEFT;  // Start by moving to LEFT switch first
         homeRangeSteps = 0;
         isHomed = false;
@@ -115,6 +118,24 @@ public:
                 
             case HomingState::MOVE_LEFT:
                 if (!enabled) {
+                    // Check if already at LEFT switch - if so, move away first
+                    if (isLeftSwitchPressed()) {
+                        Serial.println(F("Homing Motor 2: Already at LEFT, moving away..."));
+                        setDirection(Config::CCW_LEFT); // Move RIGHT first
+                        delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+                        delayMicroseconds(Config::Timing::DIR_SETUP_US);
+                        resetStepCount();
+                        totalSteps = offsetSteps;  // Move away by offset distance
+                        enabled = true;
+                        delay(100);  // Wait a bit for movement to start
+                        // Wait for movement to complete
+                        while (enabled) {
+                            // Motor will auto-disable when done
+                            delay(10);
+                        }
+                        Serial.println(F("Homing Motor 2: Freed from LEFT switch"));
+                    }
+                    
                     Serial.println(F("Homing Motor 2: Moving to LEFT switch..."));
                     setDirection(Config::CW_RIGHT); // Inverted: CW signal for LEFT movement
                     delay(Config::Timing::DIR_CHANGE_DELAY_MS);
@@ -214,12 +235,35 @@ public:
         delay(Config::Timing::DIR_CHANGE_DELAY_MS);
         delayMicroseconds(Config::Timing::DIR_SETUP_US);
         
-        // Calculate safe movement distance (always the full range minus safety margins)
-        // Total oscillation range = homeRangeSteps - (2 * offsetSteps) - safety margin
-        totalSteps = homeRangeSteps - (2 * offsetSteps) - 50;
+        // FULL continuous movement: Motor2 moves the ENTIRE home range
+        // This allows continuous movement through Motor1's direction change
+        // Motor2 runs from one side to the other without stopping
+        totalSteps = homeRangeSteps;
         
         // Use pre-calculated accel/decel zones (relative to 360°)
         // This keeps acceleration consistent regardless of movement distance
+        accelEndStep = accelZoneSteps;
+        decelStartStep = (totalSteps > decelZoneSteps) ? (totalSteps - decelZoneSteps) : 0;
+        
+        resetStepCount();
+        currentSpeedFactor = Config::Motor2::MIN_SPEED_FACTOR;
+        speedProfileEnabled = true;  // Enable speed ramping
+        enabled = true;
+    }
+    
+    // Half oscillation for synchronized sequence
+    void startHalfOscillation(bool directionRight) {
+        if (!isHomed) return;
+        
+        // Direction is inverted for this motor: RIGHT=CCW signal, LEFT=CW signal
+        setDirection(directionRight ? Config::CCW_LEFT : Config::CW_RIGHT);
+        delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+        delayMicroseconds(Config::Timing::DIR_SETUP_US);
+        
+        // HALF oscillation range
+        totalSteps = (homeRangeSteps - (2 * offsetSteps) - 50) / 2;
+        
+        // Use pre-calculated accel/decel zones (relative to 360°)
         accelEndStep = accelZoneSteps;
         decelStartStep = (totalSteps > decelZoneSteps) ? (totalSteps - decelZoneSteps) : 0;
         
@@ -246,6 +290,26 @@ public:
     
     bool isMovementComplete() const {
         return !enabled && stepCount >= totalSteps;
+    }
+    
+    void stopOscillation() {
+        stopMovement();  // Alias for semantic clarity
+    }
+    
+    unsigned long getTotalSteps() const {
+        return totalSteps;
+    }
+    
+    // Calculate the actual oscillation distance (with safety margins applied)
+    // This is FULL continuous movement from one side to the other
+    unsigned long getOscillationSteps() const {
+        if (!isHomed) return 0;
+        // Full distance: the complete measured home range
+        return homeRangeSteps;
+    }
+    
+    float stepsToDegrees(unsigned long steps) const {
+        return ((float)steps / (float)(gearRatio * stepsPerRev * microsteps)) * 360.0f;
     }
     
     long getPosition() const {

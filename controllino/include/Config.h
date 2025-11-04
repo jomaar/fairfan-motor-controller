@@ -16,15 +16,23 @@ namespace Config {
         constexpr uint16_t STEPS_PER_REV = 200;      // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;            // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 20;           // Gear reduction ratio (20:1)
-        constexpr float TARGET_RPM = 15.0f;          // Target speed at output shaft (after gear reduction)
+        constexpr float TARGET_RPM = 1.5f;          // Target speed at output shaft (after gear reduction)
         constexpr float TEST_DEGREES = 180.0f;       // Movement angle for 'go1' test command (half rotation)
-        constexpr float SEQUENCE_DEGREES = 720.0f;   // Movement angle for seq1 oscillation (2 full rotations)
-        constexpr float MAX_DEGREES = 1080.0f;       // Maximum allowed rotation (3 full rotations = safety limit)
+        constexpr float S00  // Movement angle for seq1 oscillation (2 full rotations)
+        constexpr float MAX_DEGREES = 720.0f;       // Maximum allowed rotation (2 full rotations = safety limit)
+        constexpr float SOFT_LIMIT_DEGREES = 900.0f; // Soft warning limit (2.5 rotations)
+        
         // Speed Profile (calculated relative to 360° rotation for consistent acceleration)
         constexpr float ACCEL_ZONE = 0.05f;          // Acceleration zone (5% of 360° = 18°)
         constexpr float DECEL_ZONE = 0.05f;          // Deceleration zone (5% of 360° = 18°)
         constexpr float POWER_CURVE = 0.8f;          // Power curve exponent for acceleration/deceleration profile (0.8 = gentle curve)
         constexpr float MIN_SPEED_FACTOR = 0.1f;     // Minimum speed as fraction of target speed (0.1 = 10% minimum to prevent stalling)
+        
+        // Position Tracking & FRAM
+        // Motor1: 20 gear × 200 steps × 8 microsteps = 32000 steps/360°
+        // 0.5° = 32000 / 360 × 0.5 ≈ 44 steps
+        constexpr long FRAM_UPDATE_INTERVAL_STEPS = 44;  // Update FRAM every ~0.5° (cable has tolerance)
+        constexpr float FRAM_UPDATE_INTERVAL_DEGREES = 0.5f;
     }
     
     // Motor 2 Parameters (Oscillation Motor)
@@ -32,13 +40,13 @@ namespace Config {
         constexpr uint8_t STEP_PIN = 7;                          // Digital pin for step pulses
         constexpr uint8_t DIR_PIN = 8;                           // Digital pin for direction control
         constexpr uint8_t ENABLE_PIN = 9;                        // Enable/disable motor driver (LOW=enabled)
-        constexpr uint8_t LEFT_SWITCH_PIN = CONTROLLINO_DI0;     // Limit switch at left position (NC = normally closed)
-        constexpr uint8_t RIGHT_SWITCH_PIN = CONTROLLINO_DI1;    // Limit switch at right position (NC = normally closed)
+        constexpr uint8_t LEFT_SWITCH_PIN = CONTROLLINO_DI1;     // Limit switch at left position (NC = normally closed)
+        constexpr uint8_t RIGHT_SWITCH_PIN = CONTROLLINO_DI0;    // Limit switch at right position (NC = normally closed)
         constexpr uint16_t STEPS_PER_REV = 200;                  // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;                        // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 50;                       // Gear reduction ratio (50:1)
-        constexpr float TARGET_RPM = 5.0f;                       // Target speed at output shaft (after gear reduction)
-        constexpr float OFFSET_DEGREES = 10.0f;                  // Offset from right limit switch after homing (safety margin)
+        constexpr float TARGET_RPM = 0.5f;                       // Target speed at output shaft (after gear reduction)
+        constexpr float OFFSET_DEGREES = 1.0f;                  // Offset from right limit switch after homing (safety margin)
         // Speed Profile (calculated relative to 360° rotation for consistent acceleration)
         constexpr float ACCEL_ZONE = 0.10f;          // Acceleration zone (10% of 360° = 36°)
         constexpr float DECEL_ZONE = 0.10f;          // Deceleration zone (10% of 360° = 36°)
@@ -62,8 +70,24 @@ namespace Config {
     
     // Sequence Behavior
     namespace Sequence {
-        constexpr bool AUTO_START_AFTER_HOMING = true;      // If true, seq1 starts automatically after Motor2 homing completes
-        constexpr bool MOTOR1_SAME_DIR_AS_MOTOR2 = true;     // If true, Motor1 moves same direction as Motor2; if false, opposite direction
+        constexpr bool AUTO_START_AFTER_HOMING = false;      // If true, seq1 starts automatically after Motor2 homing completes
+        
+        // Synchronized oscillation with overlap
+        constexpr float MOTOR1_MAX_DEGREES = 720.0f;         // Motor1 oscillates between 0° and this value
+        constexpr float MOTOR2_OVERLAP_DEGREES = 40.0f;      // Overlap zone: Motor2 oscillates in last/first N° of Motor1
+        constexpr float MOTOR2_OVERLAP_PERCENTAGE = 0.5f;    // 50% of Motor2 movement in each overlap zone (last/first degrees)
+    }
+    
+    // Homing Behavior
+    namespace Homing {
+        constexpr bool AUTO_START_ON_BOOT = false;            // If true, homing starts automatically on boot; if false, only on command
+    }
+    
+    // FRAM Configuration
+    namespace FRAM {
+        constexpr uint8_t I2C_ADDRESS = 0x50;                 // MB85RC256V FRAM I2C address
+        constexpr bool ENABLE_AUTO_RECOVERY = true;           // Auto-return to home position after power loss
+        constexpr bool RECOVERY_BEFORE_HOMING = true;         // If true, Motor1 recovery happens before Motor2 homing
     }
 }
 
