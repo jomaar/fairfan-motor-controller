@@ -113,8 +113,8 @@ namespace Config {
     
     // Sequence Behavior
     namespace Sequence {
-        constexpr bool AUTO_START_AFTER_HOMING = false;       // If true, seq1 starts automatically after Motor2 homing completes
-        constexpr bool BUTTON_AUTOSTART = false;              // If true, button triggers autostart when system is idle
+        constexpr bool AUTO_START_AFTER_HOMING = true;       // If true, seq1 starts automatically after Motor2 homing completes
+        constexpr bool BUTTON_AUTOSTART = true;              // If true, button triggers autostart when system is idle
         
         // Motor2 trigger positions (symmetric around Motor1 oscillation range)
         // Loaded from SpeedProfiles.h based on ACTIVE_PROFILE

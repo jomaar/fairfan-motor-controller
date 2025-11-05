@@ -235,6 +235,10 @@ void loop() {
     // Update softstop state machine if active
     if (softstop.isActive()) {
         softstop.update();
+    } else if (autoStartState == AutoStartState::COMPLETE) {
+        // Reset autostart state after softstop completes or sequence ends
+        // This allows the button to trigger autostart again
+        autoStartState = AutoStartState::IDLE;
     }
     
     // === Softstop Button Handling (with debouncing) ===
@@ -279,10 +283,9 @@ void loop() {
                         delay(Config::Timing::DIR_CHANGE_DELAY_MS);
                         delayMicroseconds(Config::Timing::DIR_SETUP_US);
                         motor1.startMovement(degreesToMove, false);
-                        autoStartState = AutoStartState::GOTO_HOME1;
+                        autoStartState = AutoStartState::WAIT_MOTOR1_HOME;
                     } else {
                         Serial.println(F("=== AUTOSTART: Motor1 already at home, starting Motor2 homing ==="));
-                        motor2.startHoming();
                         autoStartState = AutoStartState::START_HOMING;
                     }
                 }
