@@ -30,7 +30,7 @@ public:
     
     void start() {
         if (!motor2.isHomingComplete()) {
-            Serial.println(F("Error: Motor 2 not homed. Run 'home' command first!"));
+            LOG_PRINTLN(F("Error: Motor 2 not homed. Run 'home' command first!"));
             return;
         }
         
@@ -38,29 +38,26 @@ public:
         motor2TriggerLow = Config::Sequence::MOTOR2_TRIGGER_LOW;
         
         // Debug output
-        unsigned long motor2Steps = motor2.getOscillationSteps();
-        float motor2Degrees = motor2.stepsToDegrees(motor2Steps);
+        LOG_PRINTLN(F("=== Independent Sequence Started ==="));
+        DEBUG_PRINT(F("Motor1: 0\xF8 <--> "));
+        DEBUG_PRINTF(Config::Motor1::MAX_DEGREES, 0);
+        DEBUG_PRINT(F("\xF8 @ "));
+        DEBUG_PRINTF(Config::Motor1::TARGET_RPM, 1);
+        DEBUG_PRINTLN(F(" RPM"));
         
-        Serial.println(F("=== Independent Sequence Started ==="));
-        Serial.print(F("Motor1: 0\xF8 <--> "));
-        Serial.print(Config::Motor1::MAX_DEGREES, 0);
-        Serial.print(F("\xF8 @ "));
-        Serial.print(Config::Motor1::TARGET_RPM, 1);
-        Serial.println(F(" RPM"));
+        DEBUG_PRINT(F("Motor2: "));
+        DEBUG_PRINTF(motor2Degrees, 1);
+        DEBUG_PRINT(F("\xF8 @ "));
+        DEBUG_PRINTF(Config::Motor2::TARGET_RPM, 1);
+        DEBUG_PRINTLN(F(" RPM"));
         
-        Serial.print(F("Motor2: "));
-        Serial.print(motor2Degrees, 1);
-        Serial.print(F("\xF8 @ "));
-        Serial.print(Config::Motor2::TARGET_RPM, 1);
-        Serial.println(F(" RPM"));
+        DEBUG_PRINT(F("Motor2 trigger HIGH: "));
+        DEBUG_PRINTF(motor2TriggerHigh, 0);
+        DEBUG_PRINTLN(F("\xF8 of Motor1"));
         
-        Serial.print(F("Motor2 trigger HIGH: "));
-        Serial.print(motor2TriggerHigh, 0);
-        Serial.println(F("\xF8 of Motor1"));
-        
-        Serial.print(F("Motor2 trigger LOW: "));
-        Serial.print(motor2TriggerLow, 0);
-        Serial.println(F("\xF8 of Motor1"));
+        DEBUG_PRINT(F("Motor2 trigger LOW: "));
+        DEBUG_PRINTF(motor2TriggerLow, 0);
+        DEBUG_PRINTLN(F("\xF8 of Motor1"));
         
         motor1.setDirection(Config::CW_RIGHT);
         delay(Config::Timing::DIR_CHANGE_DELAY_MS);
@@ -71,22 +68,22 @@ public:
         motor2TriggeredHigh = false;
         motor2TriggeredLow = false;
         
-        Serial.println(F("Phase 1: Motor1 -> 720\xF8 CW"));
+        DEBUG_PRINTLN(F("Phase 1: Motor1 -> 720\xF8 CW"));
     }
     
     void stop() {
         if (currentState == SequenceState::IDLE) {
-            Serial.println(F("Sequence not running"));
+            DEBUG_PRINTLN(F("Sequence not running"));
             return;
         }
         
-        Serial.println(F("Stopping sequence..."));
+        DEBUG_PRINTLN(F("Stopping sequence..."));
         motor1.stopMovement();
         motor2.stopOscillation();
         currentState = SequenceState::IDLE;
         motor2TriggeredHigh = false;
         motor2TriggeredLow = false;
-        Serial.println(F("Sequence stopped"));
+        DEBUG_PRINTLN(F("Sequence stopped"));
     }
     
     // Stop sequence state machine without stopping motors (for softstop)
@@ -95,7 +92,7 @@ public:
             return;
         }
         
-        Serial.println(F("Sequence: Stopping state machine (motors continue)"));
+        DEBUG_PRINTLN(F("Sequence: Stopping state machine (motors continue)"));
         currentState = SequenceState::IDLE;
         motor2TriggeredHigh = false;
         motor2TriggeredLow = false;
@@ -115,18 +112,18 @@ public:
                 // Trigger Motor2 at HIGH position (near MAX_DEGREES) - only if Motor2 is NOT moving
                 if (!motor2TriggeredHigh && motor1Position >= motor2TriggerHigh) {
                     if (!motor2.isEnabled()) {
-                        Serial.print(F("Motor2 TRIGGER HIGH at Motor1="));
-                        Serial.print(motor1Position, 1);
-                        Serial.print(F("\xF8, starting RIGHT oscillation ("));
-                        Serial.print(motor2.getOscillationSteps());
-                        Serial.println(F(" steps)"));
+                        DEBUG_PRINT(F("Motor2 TRIGGER HIGH at Motor1="));
+                        DEBUG_PRINTF(motor1Position, 1);
+                        DEBUG_PRINT(F("\xF8, starting RIGHT oscillation ("));
+                        DEBUG_PRINT(motor2.getOscillationSteps());
+                        DEBUG_PRINTLN(F(" steps)"));
                         motor2.startOscillation(true);  // RIGHT: from LEFT offset to RIGHT offset
                         motor2TriggeredHigh = true;
                     }
                 }
                 
                 if (motor1.isMovementComplete()) {
-                    Serial.println(F("Phase 2: Motor1 -> 0\xF8 CCW"));
+                    DEBUG_PRINTLN(F("Phase 2: Motor1 -> 0\xF8 CCW"));
                     
                     motor1.setDirection(Config::CCW_LEFT);
                     delay(Config::Timing::DIR_CHANGE_DELAY_MS);
@@ -141,18 +138,18 @@ public:
                 // Trigger Motor2 at LOW position (near 0°) - only if Motor2 is NOT moving
                 if (!motor2TriggeredLow && motor1Position <= motor2TriggerLow) {
                     if (!motor2.isEnabled()) {
-                        Serial.print(F("Motor2 TRIGGER LOW at Motor1="));
-                        Serial.print(motor1Position, 1);
-                        Serial.print(F("\xF8, starting LEFT oscillation ("));
-                        Serial.print(motor2.getOscillationSteps());
-                        Serial.println(F(" steps)"));
+                        DEBUG_PRINT(F("Motor2 TRIGGER LOW at Motor1="));
+                        DEBUG_PRINTF(motor1Position, 1);
+                        DEBUG_PRINT(F("\xF8, starting LEFT oscillation ("));
+                        DEBUG_PRINT(motor2.getOscillationSteps());
+                        DEBUG_PRINTLN(F(" steps)"));
                         motor2.startOscillation(false);  // LEFT: from RIGHT offset to LEFT offset
                         motor2TriggeredLow = true;
                     }
                 }
                 
                 if (motor1.isMovementComplete()) {
-                    Serial.println(F("Phase 1: Motor1 -> 720\xF8 CW"));
+                    DEBUG_PRINTLN(F("Phase 1: Motor1 -> 720\xF8 CW"));
                     
                     motor1.setDirection(Config::CW_RIGHT);
                     delay(Config::Timing::DIR_CHANGE_DELAY_MS);

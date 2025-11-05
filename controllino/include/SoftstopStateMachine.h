@@ -29,27 +29,27 @@ public:
     void start() {
         float currentDeg = motor1.getPositionDegrees();
         
-        Serial.println(F("SOFT STOP: Motors will decel to reversal points..."));
-        Serial.print(F("  Motor1 at "));
-        Serial.print(currentDeg, 1);
-        Serial.print(F("° - will decel to reversal point (0° or "));
-        Serial.print(Config::Motor1::MAX_DEGREES, 0);
-        Serial.println(F("°)"));
+        LOG_PRINTLN(F("SOFT STOP: Motors will decel to reversal points..."));
+        DEBUG_PRINT(F("  Motor1 at "));
+        DEBUG_PRINTF(currentDeg, 1);
+        DEBUG_PRINT(F("° - will decel to reversal point (0° or "));
+        DEBUG_PRINTF(Config::Motor1::MAX_DEGREES, 0);
+        DEBUG_PRINTLN(F("°)"));
         
         // Check if Motor1 is heading to MAX_DEGREES (upper half) or to 0° (lower half)
         if (currentDeg > Config::Motor1::MAX_DEGREES / 2.0f) {
             // Motor1 was moving CW toward MAX_DEGREES
             // After reaching MAX_DEGREES with decel, it needs to reverse to 0°
-            Serial.println(F("  -> After reaching reversal point, will return to 0°"));
+            DEBUG_PRINTLN(F("  -> After reaching reversal point, will return to 0°"));
             motor1NeedsReversal = true;
         } else {
             // Motor1 was moving CCW toward 0°
             // After reaching 0° with decel, it's already home
-            Serial.println(F("  -> After reaching reversal point (0°), already home"));
+            DEBUG_PRINTLN(F("  -> After reaching reversal point (0°), already home"));
             motor1NeedsReversal = false;
         }
         
-        Serial.println(F("  Motor2: Will complete current oscillation with decel"));
+        DEBUG_PRINTLN(F("  Motor2: Will complete current oscillation with decel"));
         
         motor1Handled = false;
         motor2Handled = false;
@@ -58,7 +58,7 @@ public:
     
     void stop() {
         if (currentState != SoftstopState::IDLE) {
-            Serial.println(F("Softstop cancelled"));
+            DEBUG_PRINTLN(F("Softstop cancelled"));
             currentState = SoftstopState::IDLE;
         }
     }
@@ -80,21 +80,21 @@ public:
                     
                     float currentDeg = motor1.getPositionDegrees();
                     
-                    Serial.println(F("SOFT STOP: Motor1 reached reversal point"));
-                    Serial.print(F("  Motor1: Stopped at "));
-                    Serial.print(currentDeg, 1);
-                    Serial.println(F("°"));
+                    DEBUG_PRINTLN(F("SOFT STOP: Motor1 reached reversal point"));
+                    DEBUG_PRINT(F("  Motor1: Stopped at "));
+                    DEBUG_PRINTF(currentDeg, 1);
+                    DEBUG_PRINTLN(F("°"));
                     
                     // Check if Motor1 needs to move to 0°
                     // Allow small tolerance (e.g., within 1°) to consider as "at home"
                     if (abs(currentDeg) < 1.0f) {
                         // Motor1 is already at/near home position
-                        Serial.println(F("  Motor1: Already at home (0°)"));
+                        DEBUG_PRINTLN(F("  Motor1: Already at home (0°)"));
                     } else {
                         // Motor1 needs to return to 0°, regardless of previous direction
-                        Serial.print(F("  Motor1: Returning from "));
-                        Serial.print(currentDeg, 1);
-                        Serial.println(F("° to 0° with accel/decel"));
+                        DEBUG_PRINT(F("  Motor1: Returning from "));
+                        DEBUG_PRINTF(currentDeg, 1);
+                        DEBUG_PRINTLN(F("° to 0° with accel/decel"));
                         
                         motor1.setDirection(Config::CCW_LEFT);
                         delay(Config::Timing::DIR_CHANGE_DELAY_MS);
@@ -108,7 +108,7 @@ public:
                 // Handle Motor2 stopping (independent of Motor1) - just mark as handled
                 if (!motor2Handled && !motor2.isEnabled()) {
                     motor2Handled = true;
-                    Serial.println(F("SOFT STOP: Motor2 reached reversal point (waiting for Motor1)"));
+                    DEBUG_PRINTLN(F("SOFT STOP: Motor2 reached reversal point (waiting for Motor1)"));
                 }
                 
                 // Transition once both motors have stopped their initial movement
@@ -118,13 +118,13 @@ public:
                     // Check if Motor1 is already at home (within 1° tolerance)
                     if (abs(currentDeg) < 1.0f) {
                         // Motor1 already home, skip directly to Motor2 homing
-                        Serial.println(F("SOFT STOP: Motor1 at home, starting Motor2 homing..."));
+                        LOG_PRINTLN(F("SOFT STOP: Motor1 at home, starting Motor2 homing..."));
                         motor2.startHoming();
                         currentState = SoftstopState::MOTOR2_HOMING;
                     } else {
                         // Motor1 is returning home, wait for it
                         currentState = SoftstopState::MOTOR1_RETURNING_HOME;
-                        Serial.println(F("SOFT STOP: Waiting for Motor1 to reach 0°..."));
+                        DEBUG_PRINTLN(F("SOFT STOP: Waiting for Motor1 to reach 0°..."));
                     }
                 }
                 break;
@@ -132,8 +132,8 @@ public:
             case SoftstopState::MOTOR1_RETURNING_HOME:
                 // Wait for Motor1 to reach home position
                 if (!motor1.isEnabled()) {
-                    Serial.println(F("SOFT STOP: Motor1 at home (0°)"));
-                    Serial.println(F("SOFT STOP: Starting Motor2 homing..."));
+                    LOG_PRINTLN(F("SOFT STOP: Motor1 at home (0°)"));
+                    LOG_PRINTLN(F("SOFT STOP: Starting Motor2 homing..."));
                     motor2.startHoming();
                     currentState = SoftstopState::MOTOR2_HOMING;
                 }
@@ -142,7 +142,7 @@ public:
             case SoftstopState::MOTOR2_HOMING:
                 // Wait for Motor2 homing to complete
                 if (motor2.getHomingState() == HomingState::IDLE) {
-                    Serial.println(F("SOFT STOP: Complete! Both motors at home"));
+                    LOG_PRINTLN(F("SOFT STOP: Complete! Both motors at home"));
                     currentState = SoftstopState::IDLE;
                 }
                 break;

@@ -76,19 +76,19 @@ void setup() {
     Timer3.initialize(motor2.getTimerPeriod());
     Timer3.attachInterrupt(stepMotor2);
     
-    Serial.println(F("System initialized"));
-    Serial.print(F("Motor 1: Timer period = "));
-    Serial.print(motor1.getTimerPeriod());
-    Serial.println(F(" µs"));
-    Serial.print(F("Motor 2: Timer period = "));
-    Serial.print(motor2.getTimerPeriod());
-    Serial.println(F(" µs"));
+    DEBUG_PRINTLN(F("System initialized"));
+    DEBUG_PRINT(F("Motor 1: Timer period = "));
+    DEBUG_PRINT(motor1.getTimerPeriod());
+    DEBUG_PRINTLN(F(" µs"));
+    DEBUG_PRINT(F("Motor 2: Timer period = "));
+    DEBUG_PRINT(motor2.getTimerPeriod());
+    DEBUG_PRINTLN(F(" µs"));
     
     // Initialize FRAM
-    Serial.println(F("Initializing FRAM..."));
+    DEBUG_PRINTLN(F("Initializing FRAM..."));
     if (!positionManager.init()) {
-        Serial.println(F("WARNING: FRAM initialization failed!"));
-        Serial.println(F("Position tracking will not be persistent."));
+        LOG_PRINTLN(F("WARNING: FRAM initialization failed!"));
+        LOG_PRINTLN(F("Position tracking will not be persistent."));
     }
     
     // Load saved position from FRAM
@@ -100,11 +100,11 @@ void setup() {
     bool positionValid = (abs(savedPosition) <= maxValidSteps);
     
     if (positionLoaded && savedPosition != 0 && positionValid) {
-        Serial.print(F("⚠️  POWER LOSS DETECTED! Saved position: "));
-        Serial.print(savedPosition);
-        Serial.print(F(" steps ("));
-        Serial.print(motor1.stepsToDegrees(savedPosition), 2);
-        Serial.println(F("°)"));
+        LOG_PRINT(F("⚠️  POWER LOSS DETECTED! Saved position: "));
+        LOG_PRINT(savedPosition);
+        LOG_PRINT(F(" steps ("));
+        LOG_PRINTF(motor1.stepsToDegrees(savedPosition), 2);
+        LOG_PRINTLN(F("°)"));
         
         // Restore position to motor
         motor1.setPosition(savedPosition);
@@ -115,45 +115,45 @@ void setup() {
             
             // Sanity check: Don't recover if too far (possible corruption)
             if (degreesToMove > Config::Motor1::MAX_DEGREES) {
-                Serial.println(F("ERROR: Saved position exceeds limits! FRAM may be corrupt."));
-                Serial.println(F("Resetting to home position (0). Please calibrate with 'setzero'."));
+                LOG_PRINTLN(F("ERROR: Saved position exceeds limits! FRAM may be corrupt."));
+                LOG_PRINTLN(F("Resetting to home position (0). Please calibrate with 'setzero'."));
                 motor1.setPosition(0);
                 positionManager.savePosition(0);
             } else {
-                Serial.println(F("AUTO-RECOVERY will start in main loop..."));
-                Serial.print(F("Recovery needed: "));
-                Serial.print(degreesToMove, 2);
-                Serial.println(F("°"));
-                Serial.println(F("Use 'gotohome1' command or wait for auto-recovery"));
+                DEBUG_PRINTLN(F("AUTO-RECOVERY will start in main loop..."));
+                DEBUG_PRINT(F("Recovery needed: "));
+                DEBUG_PRINTF(degreesToMove, 2);
+                DEBUG_PRINTLN(F("°"));
+                DEBUG_PRINTLN(F("Use 'gotohome1' command or wait for auto-recovery"));
             }
         }
     } else if (positionLoaded && !positionValid) {
-        Serial.print(F("⚠️  FRAM DATA CORRUPT! Invalid position: "));
-        Serial.print(savedPosition);
-        Serial.println(F(" steps"));
-        Serial.println(F("Resetting to home (0). Please calibrate with 'setzero' command."));
+        LOG_PRINT(F("⚠️  FRAM DATA CORRUPT! Invalid position: "));
+        LOG_PRINT(savedPosition);
+        LOG_PRINTLN(F(" steps"));
+        LOG_PRINTLN(F("Resetting to home (0). Please calibrate with 'setzero' command."));
         motor1.setPosition(0);
         positionManager.clear();
         positionManager.savePosition(0);
     } else {
-        Serial.println(F("Motor1 starting at home position (0)"));
+        DEBUG_PRINTLN(F("Motor1 starting at home position (0)"));
         motor1.setPosition(0);
     }
     
     // Initialize softstop button (24V input via optocoupler)
     pinMode(Config::Buttons::SOFTSTOP_PIN, INPUT);
-    Serial.println(F("Softstop button on DI2 (24V input, active HIGH when pressed)"));
+    DEBUG_PRINTLN(F("Softstop button on DI2 (24V input, active HIGH when pressed)"));
     
-    Serial.println(F("Setup complete, entering main loop..."));
+    DEBUG_PRINTLN(F("Setup complete, entering main loop..."));
     
     // Note: Autostart sequence is now triggered by button press (if BUTTON_AUTOSTART enabled)
     if (!Config::Sequence::BUTTON_AUTOSTART && Config::Homing::AUTO_START_ON_BOOT) {
         // Old behavior: autostart immediately on boot (if both flags set)
-        Serial.println(F("Auto-boot enabled. Autostart will begin in loop."));
+        DEBUG_PRINTLN(F("Auto-boot enabled. Autostart will begin in loop."));
     } else if (Config::Sequence::BUTTON_AUTOSTART) {
-        Serial.println(F("🔘 BUTTON MODE: Press button to start autostart (gotohome1 -> home -> seq1)"));
+        LOG_PRINTLN(F("🔘 BUTTON MODE: Press button to start autostart (gotohome1 -> home -> seq1)"));
     } else {
-        Serial.println(F("Automatic homing disabled. Use 'home' command to start homing."));
+        DEBUG_PRINTLN(F("Automatic homing disabled. Use 'home' command to start homing."));
     }
 }
 
@@ -162,14 +162,14 @@ void loop() {
     static bool firstLoop = true;
     
     if (firstLoop) {
-        Serial.println(F("Loop started!"));
+        DEBUG_PRINTLN(F("Loop started!"));
         firstLoop = false;
         
         // Initialize autostart sequence only if NOT using button mode
         if (!Config::Sequence::BUTTON_AUTOSTART && Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING) {
             long currentPos = motor1.getPosition();
             if (currentPos != 0) {
-                Serial.println(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
+                DEBUG_PRINTLN(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
                 float degreesToMove = abs(motor1.getPositionDegrees());
                 bool directionCW = (currentPos < 0);
                 
@@ -180,7 +180,7 @@ void loop() {
                 
                 autoStartState = AutoStartState::WAIT_MOTOR1_HOME;
             } else {
-                Serial.println(F("=== AUTOSTART: Motor1 already at home, starting homing ==="));
+                DEBUG_PRINTLN(F("=== AUTOSTART: Motor1 already at home, starting homing ==="));
                 autoStartState = AutoStartState::START_HOMING;
             }
         }
@@ -196,7 +196,7 @@ void loop() {
     switch (autoStartState) {
         case AutoStartState::WAIT_MOTOR1_HOME:
             if (motor1.isMovementComplete()) {
-                Serial.println(F("=== AUTOSTART: Step 2 - Motor1 at home, starting Motor2 homing ==="));
+                DEBUG_PRINTLN(F("=== AUTOSTART: Step 2 - Motor1 at home, starting Motor2 homing ==="));
                 autoStartState = AutoStartState::START_HOMING;
             }
             break;
@@ -208,7 +208,7 @@ void loop() {
             
         case AutoStartState::WAIT_HOMING:
             if (motor2.getHomingState() == HomingState::IDLE && motor2.isHomingComplete()) {
-                Serial.println(F("=== AUTOSTART: Step 3 - Homing complete, starting seq1 ==="));
+                DEBUG_PRINTLN(F("=== AUTOSTART: Step 3 - Homing complete, starting seq1 ==="));
                 sequence.start();
                 autoStartState = AutoStartState::COMPLETE;
             }
@@ -263,7 +263,7 @@ void loop() {
                 if (sequence.isActive()) {
                     // Sequence running → trigger softstop
                     if (!softstop.isActive()) {
-                        Serial.println(F("🔴 BUTTON: Softstop triggered"));
+                        LOG_PRINTLN(F("🔴 BUTTON: Softstop triggered"));
                         sequence.stopWithoutMotors();
                         softstop.start();
                     }
@@ -271,11 +271,11 @@ void loop() {
                            motor2.getHomingState() == HomingState::IDLE && 
                            !motor1.isEnabled()) {
                     // System idle → trigger autostart
-                    Serial.println(F("🟢 BUTTON: Starting autostart sequence..."));
+                    LOG_PRINTLN(F("🟢 BUTTON: Starting autostart sequence..."));
                     long currentPos = motor1.getPosition();
                     
                     if (currentPos != 0) {
-                        Serial.println(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
+                        DEBUG_PRINTLN(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
                         float degreesToMove = abs(motor1.getPositionDegrees());
                         bool directionCW = (currentPos < 0);
                         
@@ -285,14 +285,14 @@ void loop() {
                         motor1.startMovement(degreesToMove, false);
                         autoStartState = AutoStartState::WAIT_MOTOR1_HOME;
                     } else {
-                        Serial.println(F("=== AUTOSTART: Motor1 already at home, starting Motor2 homing ==="));
+                        DEBUG_PRINTLN(F("=== AUTOSTART: Motor1 already at home, starting Motor2 homing ==="));
                         autoStartState = AutoStartState::START_HOMING;
                     }
                 }
             } else {
                 // Button mode disabled, only softstop
                 if (sequence.isActive() && !softstop.isActive()) {
-                    Serial.println(F("⚠️  SOFTSTOP BUTTON PRESSED!"));
+                    LOG_PRINTLN(F("⚠️  SOFTSTOP BUTTON PRESSED!"));
                     sequence.stopWithoutMotors();
                     softstop.start();
                 }
@@ -320,24 +320,24 @@ void loop() {
     if (motor1WasMoving && motor1.isMovementComplete()) {
         positionManager.savePosition(motor1.getPosition());
         motor1.markPositionSaved();
-        Serial.print(F("Position saved: "));
-        Serial.print(motor1.getPosition());
-        Serial.print(F(" steps ("));
-        Serial.print(motor1.getPositionDegrees(), 2);
-        Serial.println(F("°)"));
+        DEBUG_PRINT(F("Position saved: "));
+        DEBUG_PRINT(motor1.getPosition());
+        DEBUG_PRINT(F(" steps ("));
+        DEBUG_PRINTF(motor1.getPositionDegrees(), 2);
+        DEBUG_PRINTLN(F("°)"));
     }
     motor1WasMoving = motor1.isEnabled();
     
     // Track Motor2 oscillation completion to verify NO drift
     static bool motor2WasMoving = false;
     if (motor2WasMoving && !motor2.isEnabled() && motor2.isOscillating()) {
-        Serial.print(F("Motor2 oscillation COMPLETE: "));
-        Serial.print(motor2.getStepCount());
-        Serial.print(F(" steps (expected "));
-        Serial.print(motor2.getOscillationSteps());
-        Serial.println(F(")"));
+        DEBUG_PRINT(F("Motor2 oscillation COMPLETE: "));
+        DEBUG_PRINT(motor2.getStepCount());
+        DEBUG_PRINT(F(" steps (expected "));
+        DEBUG_PRINT(motor2.getOscillationSteps());
+        DEBUG_PRINTLN(F(")"));
         if (motor2.getStepCount() != motor2.getOscillationSteps()) {
-            Serial.println(F("WARNING: Step count mismatch! DRIFT detected!"));
+            LOG_PRINTLN(F("WARNING: Step count mismatch! DRIFT detected!"));
         }
     }
     motor2WasMoving = motor2.isEnabled();

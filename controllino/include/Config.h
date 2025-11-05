@@ -12,6 +12,13 @@
 // Profile sind in SpeedProfiles.h definiert
 #define ACTIVE_PROFILE 2
 
+// ============================================================
+// DEBUG MODE
+// ============================================================
+// Set to true for development (enables verbose Serial output)
+// Set to false for production (minimal Serial output, prevents buffer overflow)
+#define DEBUG_MODE false
+
 namespace Config {
     // Motor Direction Constants (more readable than LOW/HIGH)
     constexpr bool CCW_LEFT = false;    // Counter-clockwise / Left direction (LOW)
@@ -26,7 +33,7 @@ namespace Config {
         constexpr uint8_t GEAR_RATIO = 20;           // Gear reduction ratio (20:1)
         constexpr float TEST_DEGREES = 180.0f;       // Movement angle for 'go1' test command (half rotation)
         constexpr float MAX_DEGREES = 360.0f;        // Maximum allowed rotation (1 full rotation = safety limit)
-        constexpr float SOFT_LIMIT_DEGREES = 900.0f; // Soft warning limit (2.5 rotations)
+        constexpr float SOFT_LIMIT_DEGREES = 400.0f; // Soft warning limit (2.5 rotations)
         
         // Speed Profile - loaded from SpeedProfiles.h based on ACTIVE_PROFILE
         #if ACTIVE_PROFILE == 1
@@ -142,5 +149,24 @@ namespace Config {
         constexpr bool RECOVERY_BEFORE_HOMING = true;         // If true, Motor1 recovery happens before Motor2 homing
     }
 }
+
+// ============================================================
+// DEBUG MACROS
+// ============================================================
+// Use these instead of Serial.print() to automatically disable in production
+#if DEBUG_MODE
+    #define DEBUG_PRINT(x) Serial.print(x)
+    #define DEBUG_PRINTLN(x) Serial.println(x)
+    #define DEBUG_PRINTF(x, y) Serial.print(x, y)
+#else
+    #define DEBUG_PRINT(x) do {} while(0)
+    #define DEBUG_PRINTLN(x) do {} while(0)
+    #define DEBUG_PRINTF(x, y) do {} while(0)
+#endif
+
+// Critical messages (errors, warnings) are always printed
+#define LOG_PRINT(x) Serial.print(x)
+#define LOG_PRINTLN(x) Serial.println(x)
+#define LOG_PRINTF(x, y) Serial.print(x, y)
 
 #endif // CONFIG_H
