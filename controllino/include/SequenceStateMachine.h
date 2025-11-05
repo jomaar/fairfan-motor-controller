@@ -89,6 +89,18 @@ public:
         Serial.println(F("Sequence stopped"));
     }
     
+    // Stop sequence state machine without stopping motors (for softstop)
+    void stopWithoutMotors() {
+        if (currentState == SequenceState::IDLE) {
+            return;
+        }
+        
+        Serial.println(F("Sequence: Stopping state machine (motors continue)"));
+        currentState = SequenceState::IDLE;
+        motor2TriggeredHigh = false;
+        motor2TriggeredLow = false;
+    }
+    
     bool isActive() const {
         return currentState != SequenceState::IDLE;
     }
@@ -100,7 +112,7 @@ public:
         
         switch (currentState) {
             case SequenceState::MOTOR1_TO_MAX_CW:
-                // Trigger Motor2 at HIGH position (near 720°) - only if Motor2 is NOT moving
+                // Trigger Motor2 at HIGH position (near MAX_DEGREES) - only if Motor2 is NOT moving
                 if (!motor2TriggeredHigh && motor1Position >= motor2TriggerHigh) {
                     if (!motor2.isEnabled()) {
                         Serial.print(F("Motor2 TRIGGER HIGH at Motor1="));

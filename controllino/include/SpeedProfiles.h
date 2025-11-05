@@ -44,10 +44,10 @@
 #define M2_P2_RPM 2.0f
 #define M2_P2_ACCEL 0.4f
 #define M2_P2_DECEL 0.2f
-#define M2_P2_CURVE 0.5f
+#define M2_P2_CURVE 0.25f
 #define M2_P2_MINSPEED 0.12f
 
-#define M2_P2_TRIGGER_OFFSET 70.0f
+#define M2_P2_TRIGGER_OFFSET 60.0f
 
 // ============================================================
 // PROFILE 3 - Smooth (zum Testen)

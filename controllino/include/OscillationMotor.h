@@ -222,7 +222,7 @@ public:
                         
                         // Mark as homed BEFORE changing state
                         isHomed = true;
-                        speedProfileEnabled = true;
+                        speedProfileEnabled = false;  // Keep disabled until oscillation starts
                         Serial.println(F("Homing Motor 2: Complete!"));
                         
                         homingState = HomingState::COMPLETE;

@@ -20,6 +20,7 @@
 #include "MainMotor.h"
 #include "OscillationMotor.h"
 #include "SequenceStateMachine.h"
+#include "SoftstopStateMachine.h"
 #include "PositionManager.h"
 #include "CommandHandler.h"
 
@@ -27,8 +28,25 @@
 MainMotor motor1;
 OscillationMotor motor2;
 SequenceStateMachine sequence(motor1, motor2);
+SoftstopStateMachine softstop(motor1, motor2);
 PositionManager positionManager;
-CommandHandler commandHandler(motor1, motor2, sequence, positionManager);
+CommandHandler commandHandler(motor1, motor2, sequence, softstop, positionManager);
+
+// === Softstop Button State ===
+bool softstopButtonPressed = false;
+unsigned long softstopButtonPressTime = 0;
+
+// === Autostart State ===
+enum class AutoStartState {
+    IDLE,
+    GOTO_HOME1,
+    WAIT_MOTOR1_HOME,
+    START_HOMING,
+    WAIT_HOMING,
+    START_SEQUENCE,
+    COMPLETE
+};
+AutoStartState autoStartState = AutoStartState::IDLE;
 
 // === ISR Wrappers ===
 // Note: ISRs must be global functions, not class methods
@@ -122,14 +140,18 @@ void setup() {
         motor1.setPosition(0);
     }
     
+    // Initialize softstop button (24V input via optocoupler)
+    pinMode(Config::Buttons::SOFTSTOP_PIN, INPUT);
+    Serial.println(F("Softstop button on DI2 (24V input, active HIGH when pressed)"));
+    
     Serial.println(F("Setup complete, entering main loop..."));
     
-    // Note: Autostart sequence (gotohome1 -> home -> seq1) is handled in loop()
-    if (Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING) {
-        Serial.println(F("Autostart enabled: gotohome1 -> home -> seq1"));
-    } else if (Config::Homing::AUTO_START_ON_BOOT) {
-        Serial.println(F("Starting automatic homing of Motor2..."));
-        motor2.startHoming();
+    // Note: Autostart sequence is now triggered by button press (if BUTTON_AUTOSTART enabled)
+    if (!Config::Sequence::BUTTON_AUTOSTART && Config::Homing::AUTO_START_ON_BOOT) {
+        // Old behavior: autostart immediately on boot (if both flags set)
+        Serial.println(F("Auto-boot enabled. Autostart will begin in loop."));
+    } else if (Config::Sequence::BUTTON_AUTOSTART) {
+        Serial.println(F("🔘 BUTTON MODE: Press button to start autostart (gotohome1 -> home -> seq1)"));
     } else {
         Serial.println(F("Automatic homing disabled. Use 'home' command to start homing."));
     }
@@ -138,22 +160,13 @@ void setup() {
 // === Main Loop ===
 void loop() {
     static bool firstLoop = true;
-    static enum class AutoStartState {
-        IDLE,
-        GOTO_HOME1,
-        WAIT_MOTOR1_HOME,
-        START_HOMING,
-        WAIT_HOMING,
-        START_SEQUENCE,
-        COMPLETE
-    } autoStartState = AutoStartState::IDLE;
     
     if (firstLoop) {
         Serial.println(F("Loop started!"));
         firstLoop = false;
         
-        // Initialize autostart sequence if enabled
-        if (Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING) {
+        // Initialize autostart sequence only if NOT using button mode
+        if (!Config::Sequence::BUTTON_AUTOSTART && Config::Homing::AUTO_START_ON_BOOT && Config::Sequence::AUTO_START_AFTER_HOMING) {
             long currentPos = motor1.getPosition();
             if (currentPos != 0) {
                 Serial.println(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
@@ -217,6 +230,73 @@ void loop() {
     // Update sequence state machine if active
     if (sequence.isActive()) {
         sequence.update();
+    }
+    
+    // Update softstop state machine if active
+    if (softstop.isActive()) {
+        softstop.update();
+    }
+    
+    // === Softstop Button Handling (with debouncing) ===
+    // 24V input via optocoupler: LOW = not pressed, HIGH = pressed (24V applied)
+    bool buttonState = digitalRead(Config::Buttons::SOFTSTOP_PIN);
+    
+    if (buttonState == HIGH && !softstopButtonPressed) {
+        // Button just pressed (24V applied to DI2)
+        softstopButtonPressTime = millis();
+        softstopButtonPressed = true;
+    } else if (buttonState == LOW && softstopButtonPressed) {
+        // Button released - check if it was pressed long enough (debounce)
+        unsigned long pressDuration = millis() - softstopButtonPressTime;
+        
+        if (pressDuration >= Config::Buttons::DEBOUNCE_MS) {
+            // Valid button press detected
+            
+            // Check system state and trigger appropriate action
+            if (Config::Sequence::BUTTON_AUTOSTART) {
+                // Button mode enabled
+                
+                if (sequence.isActive()) {
+                    // Sequence running → trigger softstop
+                    if (!softstop.isActive()) {
+                        Serial.println(F("🔴 BUTTON: Softstop triggered"));
+                        sequence.stopWithoutMotors();
+                        softstop.start();
+                    }
+                } else if (autoStartState == AutoStartState::IDLE && 
+                           motor2.getHomingState() == HomingState::IDLE && 
+                           !motor1.isEnabled()) {
+                    // System idle → trigger autostart
+                    Serial.println(F("🟢 BUTTON: Starting autostart sequence..."));
+                    long currentPos = motor1.getPosition();
+                    
+                    if (currentPos != 0) {
+                        Serial.println(F("=== AUTOSTART: Step 1 - Moving Motor1 to home (0°) ==="));
+                        float degreesToMove = abs(motor1.getPositionDegrees());
+                        bool directionCW = (currentPos < 0);
+                        
+                        motor1.setDirection(directionCW ? Config::CW_RIGHT : Config::CCW_LEFT);
+                        delay(Config::Timing::DIR_CHANGE_DELAY_MS);
+                        delayMicroseconds(Config::Timing::DIR_SETUP_US);
+                        motor1.startMovement(degreesToMove, false);
+                        autoStartState = AutoStartState::GOTO_HOME1;
+                    } else {
+                        Serial.println(F("=== AUTOSTART: Motor1 already at home, starting Motor2 homing ==="));
+                        motor2.startHoming();
+                        autoStartState = AutoStartState::START_HOMING;
+                    }
+                }
+            } else {
+                // Button mode disabled, only softstop
+                if (sequence.isActive() && !softstop.isActive()) {
+                    Serial.println(F("⚠️  SOFTSTOP BUTTON PRESSED!"));
+                    sequence.stopWithoutMotors();
+                    softstop.start();
+                }
+            }
+        }
+        
+        softstopButtonPressed = false;
     }
     
     // Update speed profiles

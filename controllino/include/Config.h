@@ -54,8 +54,7 @@ namespace Config {
         // Position Tracking & FRAM
         // Motor1: 20 gear × 200 steps × 8 microsteps = 32000 steps/360°
         // 0.5° = 32000 / 360 × 0.5 ≈ 44 steps
-        constexpr long FRAM_UPDATE_INTERVAL_STEPS = 44;  // Update FRAM every ~0.5° (cable has tolerance)
-        constexpr float FRAM_UPDATE_INTERVAL_DEGREES = 0.5f;
+        constexpr long FRAM_UPDATE_INTERVAL_STEPS = 44;  // Update FRAM every ~0.5° (safe timing for I2C writes)
     }
     
     // Motor 2 Parameters (Oscillation Motor)
@@ -68,7 +67,7 @@ namespace Config {
         constexpr uint16_t STEPS_PER_REV = 200;                  // Full steps per revolution (1.8° step angle motor)
         constexpr uint8_t MICROSTEPS = 8;                        // Microstepping driver setting (1/8 step)
         constexpr uint8_t GEAR_RATIO = 50;                       // Gear reduction ratio (50:1)
-        constexpr float OFFSET_DEGREES = 0.5f;                   // Offset from right limit switch after homing (safety margin)
+        constexpr float OFFSET_DEGREES = 0.35f;                   // Offset from right limit switch after homing (safety margin)
         
         // Speed Profile - loaded from SpeedProfiles.h based on ACTIVE_PROFILE
         #if ACTIVE_PROFILE == 1
@@ -101,6 +100,12 @@ namespace Config {
         constexpr unsigned long HOMING_PAUSE_MS = 100;      // Pause during homing operations (not currently used)
     }
     
+    // Hardware Buttons
+    namespace Buttons {
+        constexpr uint8_t SOFTSTOP_PIN = CONTROLLINO_DI2;   // Softstop button (24V input via optocoupler, active HIGH)
+        constexpr unsigned long DEBOUNCE_MS = 50;           // Button debounce time in milliseconds
+    }
+    
     // Serial Communication
     namespace Serial {
         constexpr unsigned long BAUD_RATE = 115200;  // Serial port baud rate (bits per second)
@@ -108,7 +113,8 @@ namespace Config {
     
     // Sequence Behavior
     namespace Sequence {
-        constexpr bool AUTO_START_AFTER_HOMING = true;      // If true, seq1 starts automatically after Motor2 homing completes
+        constexpr bool AUTO_START_AFTER_HOMING = false;       // If true, seq1 starts automatically after Motor2 homing completes
+        constexpr bool BUTTON_AUTOSTART = false;              // If true, button triggers autostart when system is idle
         
         // Motor2 trigger positions (symmetric around Motor1 oscillation range)
         // Loaded from SpeedProfiles.h based on ACTIVE_PROFILE
@@ -126,7 +132,7 @@ namespace Config {
     
     // Homing Behavior
     namespace Homing {
-        constexpr bool AUTO_START_ON_BOOT = true;            // If true, homing starts automatically on boot; if false, only on command
+        constexpr bool AUTO_START_ON_BOOT = false;           // If true, homing starts automatically on boot; if false, wait for button
     }
     
     // FRAM Configuration

@@ -5,6 +5,7 @@
 #include "MainMotor.h"
 #include "OscillationMotor.h"
 #include "SequenceStateMachine.h"
+#include "SoftstopStateMachine.h"
 #include "PositionManager.h"
 
 class CommandHandler {
@@ -12,6 +13,7 @@ private:
     MainMotor& motor1;
     OscillationMotor& motor2;
     SequenceStateMachine& sequence;
+    SoftstopStateMachine& softstop;
     PositionManager& positionManager;
     
     String inputString;
@@ -38,7 +40,13 @@ private:
         }
         else if (inputString == "stop1") {
             motor1.disable();
-            Serial.println(F("Motor 1: Stopped"));
+            // Wait for ISR to finish (max a few milliseconds)
+            delay(5);
+            // Save current position immediately to FRAM
+            positionManager.savePosition(motor1.getPosition());
+            Serial.print(F("Motor 1: Stopped at "));
+            Serial.print(motor1.getPositionDegrees(), 2);
+            Serial.println(F("°"));
         }
         
         // Motor 1 directional commands (e.g., "m1ccw120", "m1cw90")
@@ -298,35 +306,16 @@ private:
             Serial.println(F("Motor 2: Stopped"));
         }
         
-        // Soft stop: Motor1 to home + Motor2 homing (parallel)
+        // Soft stop: Let motors finish current cycle, then go home
         else if (inputString == "softstop") {
-            // Stop sequence first
-            sequence.stop();
-            Serial.println(F("SOFT STOP: Returning to home positions..."));
-            
-            // Motor1: Go to home (0°)
-            long currentPos = motor1.getPosition();
-            if (currentPos != 0) {
-                float degreesToMove = abs(motor1.getPositionDegrees());
-                bool directionCW = (currentPos < 0);
-                
-                Serial.print(F("  Motor1: Returning to 0° ("));
-                Serial.print(degreesToMove, 1);
-                Serial.print(F("° "));
-                Serial.print(directionCW ? F("CW") : F("CCW"));
-                Serial.println(F(")"));
-                
-                motor1.setDirection(directionCW ? Config::CW_RIGHT : Config::CCW_LEFT);
-                delay(Config::Timing::DIR_CHANGE_DELAY_MS);
-                delayMicroseconds(Config::Timing::DIR_SETUP_US);
-                motor1.startMovement(degreesToMove, false);
+            if (!sequence.isActive()) {
+                Serial.println(F("Sequence not running - use 'stopall' for immediate stop"));
             } else {
-                Serial.println(F("  Motor1: Already at home (0°)"));
+                // Stop sequence state machine WITHOUT stopping motors (they continue with decel)
+                sequence.stopWithoutMotors();
+                // Start softstop state machine
+                softstop.start();
             }
-            
-            // Motor2: Start homing (runs parallel to Motor1)
-            Serial.println(F("  Motor2: Starting homing sequence..."));
-            motor2.startHoming();
         }
         
         // Emergency stop all (hard stop)
@@ -334,7 +323,13 @@ private:
             motor1.disable();
             motor2.disable();
             sequence.stop();
-            Serial.println(F("EMERGENCY STOP: All motors stopped"));
+            // Wait for ISR to finish
+            delay(5);
+            // Save Motor1 position immediately to FRAM
+            positionManager.savePosition(motor1.getPosition());
+            Serial.print(F("EMERGENCY STOP: All motors stopped, Motor1 at "));
+            Serial.print(motor1.getPositionDegrees(), 2);
+            Serial.println(F("°"));
         }
         
         // Sequence commands
@@ -427,8 +422,8 @@ private:
     }
     
 public:
-    CommandHandler(MainMotor& m1, OscillationMotor& m2, SequenceStateMachine& seq, PositionManager& pm)
-        : motor1(m1), motor2(m2), sequence(seq), positionManager(pm),
+    CommandHandler(MainMotor& m1, OscillationMotor& m2, SequenceStateMachine& seq, SoftstopStateMachine& ss, PositionManager& pm)
+        : motor1(m1), motor2(m2), sequence(seq), softstop(ss), positionManager(pm),
           inputString(""), stringComplete(false), motor1CustomDegrees(0.0f) {
         inputString.reserve(50);
     }
